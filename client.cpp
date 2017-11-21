@@ -16,7 +16,9 @@ int main(int argc, const char* argv[]){
         tcp::socket socket(io_service);
         boost::asio::connect(socket, endpoint_iterator);
         std::string send_message = argv[2];
-        socket.send(boost::asio::buffer(send_message));
+        boost::system::error_code ignored_error;
+        boost::asio::write(socket, boost::asio::buffer(send_message), ignored_error);
+        std::cout << "Send OK!" << std::endl;
         for(;;){
             std::array<char, 128> buf;
             boost::system::error_code error;

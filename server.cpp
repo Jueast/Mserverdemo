@@ -9,6 +9,7 @@
 //
 
 #include <ctime>
+#include <array>
 #include <iostream>
 #include <string>
 #include <boost/bind.hpp>
@@ -42,12 +43,11 @@ public:
 
   void start()
   {
-    message_ = make_daytime_string();
-
-    boost::asio::async_write(socket_, boost::asio::buffer(message_),
-        boost::bind(&tcp_connection::handle_write, shared_from_this(),
-          boost::asio::placeholders::error,
-          boost::asio::placeholders::bytes_transferred));
+    boost::asio::async_read(socket_, boost::asio::buffer(buf_),
+            boost::bind(&tcp_connection::handle_read, shared_from_this(),
+                boost::asio::placeholders::error,
+                boost::asio::placeholders::bytes_transferred));
+    std::cout << "Read regiseted!" << std::endl;
   }
 
 private:
@@ -55,13 +55,24 @@ private:
     : socket_(io_service)
   {
   }
+  void handle_read(const boost::system::error_code&,
+          size_t bytes_transferred){
+      std::cout << "Handle Now!" << std::endl;
+      std::cout << std::string(buf_.data(), bytes_transferred) << std::endl;
+      message_ = make_daytime_string();
+      boost::asio::async_write(socket_, boost::asio::buffer(message_),
+            boost::bind(&tcp_connection::handle_write, shared_from_this(),
+            boost::asio::placeholders::error,
+            boost::asio::placeholders::bytes_transferred));
 
-  void handle_write(const boost::system::error_code& /*error*/,
-      size_t /*bytes_transferred*/)
+  }
+  void handle_write(const boost::system::error_code&,
+      size_t)
   {
   }
 
   tcp::socket socket_;
+  std::array<char, 4> buf_;
   std::string message_;
 };
 
@@ -69,7 +80,7 @@ class tcp_server
 {
 public:
   tcp_server(boost::asio::io_service& io_service)
-    : acceptor_(io_service, tcp::endpoint(tcp::v4(), 13))
+    : acceptor_(io_service, tcp::endpoint(tcp::v4(), 8000))
   {
     start_accept();
   }
