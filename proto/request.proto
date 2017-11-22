@@ -1,0 +1,10 @@
+syntax = "proto3";
+message Request {
+    enum RequestType {
+        LOGIN = 0;
+        GETACCOUNT = 1;
+    }
+    RequestType type = 1;
+    int32 id = 2;
+    string content = 3; 
+}
