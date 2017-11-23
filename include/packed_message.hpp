@@ -1,6 +1,6 @@
 #ifndef PACKED_MESSAGE_HPP
 #define PACKED_MESSAGE_HPP
-#include "tmp/request.pb.h"
+#include <prototmp/request.pb.h>
 #include <array>
 #include <string>
 #include <sstream>
@@ -24,7 +24,11 @@ public:
     size_t body_length(){
         return body_length_;
     }
-
+    
+    size_t whole_size(){
+        return header_length + body_length_;
+    }
+    size_t decode_header();
     Request decode_request(); 
     // Encode request in PackedMessage and update body_length at the same time
     void encode_request(const Request & r);

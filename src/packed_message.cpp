@@ -1,5 +1,9 @@
-#include "packed_message.hpp"
+#include <packed_message.hpp>
 
+size_t PackedMessage::decode_header(){
+    std::sscanf(data_.data(), "%4zu", &body_length_);
+    return body_length_;
+}
 void PackedMessage::encode_request(const Request & r){
     std::string s;
     r.SerializeToString(&s);
@@ -12,7 +16,8 @@ void PackedMessage::encode_request(const Request & r){
 Request PackedMessage::decode_request(){
     Request r;
     std::sscanf(data_.data(), "%4zu", &body_length_);
-    bool flag = r.ParseFromString(std::string(data_.begin()+4, data_.end() + 4 + body_length_));
+    bool flag = r.ParseFromString(std::string(data_.begin() + header_length, 
+                                  data_.end() + header_length + body_length_));
     return r;
 }
 
