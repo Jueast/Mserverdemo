@@ -1,6 +1,6 @@
 CC=g++
 STD=c++11
-CFLAGS=-lpthread -lboost_system -std=$(STD)
+CFLAGS=-lpthread -lboost_system -std=$(STD) -I.
 SRC_DIR=src
 BIN_DIR=bin
 PROTO_DIR=proto
