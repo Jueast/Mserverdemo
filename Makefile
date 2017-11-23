@@ -4,13 +4,17 @@ INC_DIR=include
 CFLAGS=-lpthread -lboost_system -std=$(STD) -I. -I${INC_DIR} -lprotobuf
 SRC_DIR=src
 BIN_DIR=bin
+OBJ_DIR=obj
 PROTO_DIR=proto
 PROTO_NAME=request
 TEMP_DIR=prototmp
 OBJS=packed_message.o ${PROTO_NAME}.pb.o
-DEPS=${INC_DIR}/packed_message.hpp
+DEPS=${INC_DIR}/packed_message.hpp 
 
-${PROTO_NAME}.pb.o: ${TEMP_DIR}/${PROTO_NAME}.pb.cc ${TEMP_DIR}/${PROTO_NAME}.pb.h
+all: protobuf server client 
+	rm *.o
+
+${PROTO_NAME}.pb.o: ${SRC_DIR}/${PROTO_NAME}.pb.cc ${INC_DIR}/${PROTO_NAME}.pb.h
 	$(CC) -o $@ -c $< $(CFLAGS)
 
 %.o: ${SRC_DIR}/%.cpp ${DEPS}
@@ -24,7 +28,11 @@ client: client.o ${OBJS}
 protobuf: ${PROTO_DIR}/${PROTO_NAME}.proto
 	mkdir -p ${TEMP_DIR}
 	protoc -I=${PROTO_DIR} --cpp_out=${TEMP_DIR} ${PROTO_DIR}/${PROTO_NAME}.proto
-
+	mv ${TEMP_DIR}/${PROTO_NAME}.pb.h ${INC_DIR}/
+	mv ${TEMP_DIR}/${PROTO_NAME}.pb.cc ${SRC_DIR}/
+	rm -r ${TEMP_DIR}
 
 clean:
-	rm -rf *.o *~ server client tmp
+	rm -rf *.o *~ server
+
+.PHONY: all clean

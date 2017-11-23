@@ -1,6 +1,6 @@
 #ifndef PACKED_MESSAGE_HPP
 #define PACKED_MESSAGE_HPP
-#include <prototmp/request.pb.h>
+#include <request.pb.h>
 #include <array>
 #include <string>
 #include <sstream>

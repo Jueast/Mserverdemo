@@ -1,8 +1,11 @@
 *
 !*.*
 !*/
+.*
 *.o
 bin/*
 tmp/*
 .ycm_*
 prototmp/*
+src/*.pb.*
+include/*.pb.*
