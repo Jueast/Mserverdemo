@@ -11,8 +11,11 @@ TEMP_DIR=prototmp
 OBJS=packed_message.o ${PROTO_NAME}.pb.o
 DEPS=${INC_DIR}/packed_message.hpp 
 
-all: protobuf server client 
+all: ${BIN_DIR} protobuf server client 
 	rm *.o
+
+${BIN_DIR}:
+	mkdir -p ${BIN_DIR}
 
 ${PROTO_NAME}.pb.o: ${SRC_DIR}/${PROTO_NAME}.pb.cc ${INC_DIR}/${PROTO_NAME}.pb.h
 	$(CC) -o $@ -c $< $(CFLAGS)
@@ -22,7 +25,7 @@ ${PROTO_NAME}.pb.o: ${SRC_DIR}/${PROTO_NAME}.pb.cc ${INC_DIR}/${PROTO_NAME}.pb.h
 server: server.o ${OBJS} 
 	$(CC) -o ${BIN_DIR}/$@ $^ $(CFLAGS) 
 
-client: client.o ${OBJS}
+client: client.o ${OBJS} 
 	$(CC) -o ${BIN_DIR}/$@ $^ $(CFLAGS)
 
 protobuf: ${PROTO_DIR}/${PROTO_NAME}.proto
@@ -33,6 +36,6 @@ protobuf: ${PROTO_DIR}/${PROTO_NAME}.proto
 	rm -r ${TEMP_DIR}
 
 clean:
-	rm -rf *.o *~ server
+	rm -rf *.o *~ ${BIN_DIR}
 
 .PHONY: all clean

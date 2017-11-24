@@ -1,5 +1,6 @@
 #include <ctime>
 #include <array>
+#include <deque>
 #include <iostream>
 #include <string>
 #include <boost/bind.hpp>
@@ -10,6 +11,7 @@
 
 
 using boost::asio::ip::tcp;
+typedef std::deque<PackedMessage> PackedMessageQueue;
 std::string make_daytime_string()
 {
   using namespace std; // For time_t, time and ctime;
@@ -33,8 +35,7 @@ public:
 
     void start()
     {
-        boost::asio::async_read(socket_, boost::asio::buffer(pm_.data()),
-            boost::asio::transfer_at_least(PackedMessage::header_length),
+        boost::asio::async_read(socket_, boost::asio::buffer(pm_.data(), PackedMessage::header_length),
             boost::bind(&tcp_connection::handle_read_header, shared_from_this(),
                 boost::asio::placeholders::error,
                 boost::asio::placeholders::bytes_transferred));
@@ -50,6 +51,8 @@ private:
               size_t){
         std::cout << "Handle Now!" << std::endl;
         size_t l = pm_.decode_header();
+        if(l == 0)
+            start();
         std::cout << "...packet size: " << l << std::endl;
         boost::asio::async_read(socket_, 
                 boost::asio::buffer(pm_.data().data()+PackedMessage::header_length, l),
@@ -66,22 +69,45 @@ private:
         std::cout << "ID: " << r.id() << std::endl;
         std::cout << "CONTENT: " << r.content() << std::endl;
         std::cout << "-----------------------------------------------------" << std::endl;
-        message_ = make_daytime_string();
-        boost::asio::async_write(socket_, boost::asio::buffer(message_),
+        PackedMessage pm;
+        build_packed_message(pm, 0, Request::LOGIN, make_daytime_string());
+        deliver(pm);
+        start();
+  }
+  void deliver(const PackedMessage& pm){
+      bool write_in_progress = !pm_queue_.empty();
+      pm_queue_.push_back(pm);
+      if(!write_in_progress){
+          do_write();
+      }
+
+  }
+  void do_write(){
+        std::cout << pm_queue_.front().decode_header() << std::endl; 
+        boost::asio::async_write(socket_, boost::asio::buffer(pm_queue_.front().data(), pm_queue_.front().whole_size()),
                         boost::bind(&tcp_connection::handle_write, shared_from_this(),
                         boost::asio::placeholders::error,
                         boost::asio::placeholders::bytes_transferred));
 
-
-
   }
-  void handle_write(const boost::system::error_code&,
+  void handle_write(const boost::system::error_code& ec,
       size_t)
   {
+      std::cout << "WRITE COMPLETE" << std::endl;
+      if(!ec){
+          pm_queue_.pop_front();
+          if(!pm_queue_.empty()){
+            do_write(); 
+          }
+      }
+      else{
+          std::cout << "SOCKET DOWN!" << std::endl;
+          socket_.close();
+      }
   }
   tcp::socket socket_;
   PackedMessage pm_;
-  std::string message_;
+  PackedMessageQueue pm_queue_;
 };
 
 class tcp_server
@@ -98,7 +124,7 @@ private:
   {
     tcp_connection::pointer new_connection =
       tcp_connection::create(acceptor_.get_io_service());
-
+    cons.push_back(new_connection);
     acceptor_.async_accept(new_connection->socket(),
         boost::bind(&tcp_server::handle_accept, this, new_connection,
           boost::asio::placeholders::error));
@@ -107,6 +133,7 @@ private:
   void handle_accept(tcp_connection::pointer new_connection,
       const boost::system::error_code& error)
   {
+    std::cout << "ADD A CONNECTION" << std::endl;
     if (!error)
     {
       new_connection->start();
@@ -116,6 +143,7 @@ private:
   }
 
   tcp::acceptor acceptor_;
+  std::vector<tcp_connection::pointer> cons;
 };
 
 int main()

@@ -1,4 +1,11 @@
-#include <packed_message.hpp>
+#include "packed_message.hpp"
+void build_packed_message(PackedMessage& pm, int id, Request::RequestType value, std::string s){
+    Request r;
+    r.set_id(id);
+    r.set_type(value);
+    r.set_content(s);
+    pm.encode_request(r);
+}
 
 size_t PackedMessage::decode_header(){
     std::sscanf(data_.data(), "%4zu", &body_length_);

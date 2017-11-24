@@ -1,11 +1,10 @@
 #ifndef PACKED_MESSAGE_HPP
 #define PACKED_MESSAGE_HPP
-#include <request.pb.h>
+#include "request.pb.h"
 #include <array>
 #include <string>
 #include <sstream>
 #include <iostream>
-
 class PackedMessage{
 public:
     enum { header_length = 4 };
@@ -20,7 +19,13 @@ public:
     DataArray & data() {
         return data_;
     }
+    const char * body() const {
+        return data_.data() + header_length;
+    }
 
+    char * body() {
+        return data_.data() + header_length;
+    }
     size_t body_length(){
         return body_length_;
     }
@@ -41,4 +46,5 @@ private:
     std::size_t body_length_;
 };
 
+void build_packed_message(PackedMessage&, int, Request::RequestType, std::string);
 #endif
