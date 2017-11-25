@@ -35,11 +35,11 @@ public:
 
     void start()
     {
-        boost::asio::async_read(socket_, boost::asio::buffer(pm_.data(), PackedMessage::header_length),
-            boost::bind(&tcp_connection::handle_read_header, shared_from_this(),
-                boost::asio::placeholders::error,
-                boost::asio::placeholders::bytes_transferred));
-        std::cout << "Read regiseted!" << std::endl;
+        
+        PackedMessage pm;
+        build_packed_message(pm, 0, Request::LOGIN, make_daytime_string());
+        deliver(pm);
+        reg_read();
     }
 
 private:
@@ -47,16 +47,21 @@ private:
         : socket_(io_service)
     {
     }
+    void reg_read(){
+        boost::asio::async_read(socket_, boost::asio::buffer(pm_.data(), PackedMessage::header_length),
+            boost::bind(&tcp_connection::handle_read_header, shared_from_this(),
+            boost::asio::placeholders::error,
+            boost::asio::placeholders::bytes_transferred));
+        std::cout << "Read regiseted!" << std::endl;
+
+    }
     void handle_read_header(const boost::system::error_code&,
               size_t){
         std::cout << "Handle Now!" << std::endl;
         size_t l = pm_.decode_header();
-        if(l == 0)
-            start();
         std::cout << "...packet size: " << l << std::endl;
         boost::asio::async_read(socket_, 
-                boost::asio::buffer(pm_.data().data()+PackedMessage::header_length, l),
-                boost::asio::transfer_at_least(l),
+                boost::asio::buffer(pm_.body(), pm_.body_length()),
                 boost::bind(&tcp_connection::handle_read_body, shared_from_this(),
                             boost::asio::placeholders::error,
                             boost::asio::placeholders::bytes_transferred));
@@ -72,7 +77,7 @@ private:
         PackedMessage pm;
         build_packed_message(pm, 0, Request::LOGIN, make_daytime_string());
         deliver(pm);
-        start();
+        reg_read();
   }
   void deliver(const PackedMessage& pm){
       bool write_in_progress = !pm_queue_.empty();

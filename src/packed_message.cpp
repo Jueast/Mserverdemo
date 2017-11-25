@@ -8,7 +8,7 @@ void build_packed_message(PackedMessage& pm, int id, Request::RequestType value,
 }
 
 size_t PackedMessage::decode_header(){
-    std::sscanf(data_.data(), "%4zu", &body_length_);
+    body_length_ = *(reinterpret_cast<uint32_t*>(data_.data()));
     return body_length_;
 }
 void PackedMessage::encode_request(const Request & r){
@@ -16,13 +16,13 @@ void PackedMessage::encode_request(const Request & r){
     r.SerializeToString(&s);
     body_length_ = s.length();
     auto p = reinterpret_cast<char*>(&body_length_);
-    std::copy(p, p+4, data_.begin());
-    std::copy(s.begin(), s.end(), data_.begin() + 4);
+    std::copy(p, p + header_length, data_.begin());
+    std::copy(s.begin(), s.end(), data_.begin() + header_length);
 }
 
 Request PackedMessage::decode_request(){
     Request r;
-    std::sscanf(data_.data(), "%4zu", &body_length_);
+    decode_header();
     bool flag = r.ParseFromString(std::string(data_.begin() + header_length, 
                                   data_.end() + header_length + body_length_));
     return r;

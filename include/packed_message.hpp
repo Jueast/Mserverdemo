@@ -43,7 +43,7 @@ public:
     
 private:
     DataArray data_;
-    std::size_t body_length_;
+    uint32_t body_length_;
 };
 
 void build_packed_message(PackedMessage&, int, Request::RequestType, std::string);
