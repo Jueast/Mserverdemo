@@ -2,6 +2,22 @@
 #define __LOGGING__
 #include <string>
 #include <atomic>
+#define hlog(level, ...) \
+    do { \
+        logging::Logger::getLogger().logv(level, __FILE__, __LINE__, __func__, __VA_ARGS__);    \
+    } while(0)
+
+
+
+#define TRACE(...) hlog(logging::level::level_enum::trace, __VA_ARGS__)
+#define DEBUG(...) hlog(logging::level::level_enum::debug, __VA_ARGS__)
+#define INFO(...) hlog(logging::level::level_enum::info, __VA_ARGS__)
+#define WARN(...) hlog(logging::level::level_enum::warn, __VA_ARGS__)
+#define ERROR(...) hlog(logging::level::level_enum::error, __VA_ARGS__)
+#define FATAL(...) hlog(logging::level::level_enum::fatal, __VA_ARGS__)
+#define FATALIF(b, ...) do { if((b)) { hlog(logging::level::level_enum::fatal, __VA_ARGS__); } } while (0)
+#define CHECK(b, ...) do { if((b)) { hlog(logging::level::level_enum::fatal, __VA_ARGS__); } } while (0)
+#define EXITIF(b, ...) do { if ((b)) { hlog(logging::level::level_enum::error, __VA_ARGS__); _exit(1); }} while(0)
 namespace logging 
 {
 
@@ -32,6 +48,10 @@ public:
     Logger& operator=(const Logger&)=delete;
     void setFileName(const std::string& filename);
     void setLogLevel(level::level_enum l);
+    void setRotateInterval_(long rotateInterval){
+        rotateInterval_ = rotateInterval;
+    }
+        
     level::level_enum getLogLevel(){
         return level_;
     }
@@ -40,10 +60,10 @@ public:
         return fd_;
     }
     void logv(int level, const char* file, int line, const char* funct, const char * fmt, ...);
-    Logger& getLogger();
+    static Logger& getLogger();
     
     void maybeRotate();
-
+    
 private:
     int fd_;
     level::level_enum level_;

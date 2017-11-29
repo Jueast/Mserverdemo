@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/syscall.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
@@ -57,8 +58,38 @@ namespace logging
     }
 
     void Logger::maybeRotate(){
+        time_t now = time(nullptr);
+        if(filename_.empty() || (now - timezone) / rotateInterval_ == (lastRotate_ - timezone) / rotateInterval_)
+            return;
+        lastRotate_ = now;
+        long old = realRotate_.exchange(now);
+        if((old - timezone) / rotateInterval_ == (lastRotate_ - timezone) / rotateInterval_)
+            return;
 
-        return;
+        struct tm ntm;
+        localtime_r(&now, &ntm);
+        char newname[4096] = {0};
+        snprintf(newname, sizeof(newname),
+                "%s.%d%02d%02d%02d%2d",
+                filename_.c_str(), ntm.tm_year+1900, ntm.tm_mon+1, ntm.tm_mday,
+                ntm.tm_hour, ntm.tm_min);
+        const char* oldname = filename_.c_str();
+        int err = rename(oldname, newname);
+        if(err != 0){
+            fprintf(stderr, "rename logfile %s -> %s failed msg: %s\n",
+                    oldname, newname, strerror(errno));
+        }
+
+        int fd = open(filename_.c_str(), O_APPEND | O_CREAT | O_WRONLY | O_CLOEXEC, DEFFILEMODE);
+        if(fd < 0){
+            fprintf(stderr, "open log file %s failed. msg: %s ignored\n",
+                                    filename_.c_str(), strerror(errno));
+            return;
+        }
+
+        dup2(fd, fd_);
+        close(fd);
+
     }
     
     static thread_local uint64_t tid;
