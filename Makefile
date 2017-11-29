@@ -8,7 +8,7 @@ OBJ_DIR=obj
 PROTO_DIR=proto
 PROTO_NAME=request
 TEMP_DIR=prototmp
-OBJS=packed_message.o ${PROTO_NAME}.pb.o
+OBJS=packed_message.o ${PROTO_NAME}.pb.o logging.o
 DEPS=${INC_DIR}/packed_message.hpp 
 
 all: ${BIN_DIR} protobuf server client 

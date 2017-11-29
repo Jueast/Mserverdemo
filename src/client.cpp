@@ -3,8 +3,9 @@
 #include <boost/asio.hpp>
 #include <array>
 #include <deque>
-#include "packed_message.hpp"
 #include <thread>
+#include "packed_message.hpp"
+#include "logging.hpp"
 using boost::asio::ip::tcp;
 typedef std::deque<PackedMessage> PackedMessageQueue;
 
@@ -118,12 +119,16 @@ int main(int argc, const char* argv[]){
             std::cerr << "Usage: client <host> <port>" << std::endl;
             return 1;
         }
+        using logging::level::level_enum;
+        logging::Logger logger;
+        logger.setLogLevel(level_enum::err);
+        logger.setFileName("log/test.log");
         boost::asio::io_service io_service;
         tcp::resolver resolver(io_service);
         tcp::resolver::query query(argv[1], argv[2]);
         tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
-        Client c(io_service, endpoint_iterator); 
-        
+        Client c(io_service, endpoint_iterator);
+        logger.logv(level_enum::err, __FILE__, __LINE__, __func__, "Hello!, %s", "world");  
         std::thread t([&io_service](){ io_service.run();});
         std::string s;
         while(std::getline(std::cin, s)){

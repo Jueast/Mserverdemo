@@ -55,20 +55,24 @@ private:
         std::cout << "Read regiseted!" << std::endl;
 
     }
-    void handle_read_header(const boost::system::error_code&,
+    void handle_read_header(const boost::system::error_code& ec,
               size_t){
-        std::cout << "Handle Now!" << std::endl;
+        if(ec)
+            throw boost::system::error_code(ec);
+        //std::cout << "Handle Now!" << std::endl;
         size_t l = pm_.decode_header();
-        std::cout << "...packet size: " << l << std::endl;
+        //std::cout << "...packet size: " << l << std::endl;
         boost::asio::async_read(socket_, 
                 boost::asio::buffer(pm_.body(), pm_.body_length()),
                 boost::bind(&tcp_connection::handle_read_body, shared_from_this(),
                             boost::asio::placeholders::error,
                             boost::asio::placeholders::bytes_transferred));
-        std::cout << "...read body regiseted!" << std::endl;
+        //std::cout << "...read body regiseted!" << std::endl;
   }
-  void handle_read_body(const boost::system::error_code&,
+  void handle_read_body(const boost::system::error_code& ec,
           size_t){
+        if(ec)
+            throw boost::system::error_code(ec);
         Request r = pm_.decode_request();
         std::cout << "-----------------Request Info------------------------" << std::endl;
         std::cout << "ID: " << r.id() << std::endl;
@@ -98,6 +102,8 @@ private:
   void handle_write(const boost::system::error_code& ec,
       size_t)
   {
+      if(ec)
+            throw boost::system::error_code(ec);
       std::cout << "WRITE COMPLETE" << std::endl;
       if(!ec){
           pm_queue_.pop_front();

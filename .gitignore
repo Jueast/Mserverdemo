@@ -3,6 +3,7 @@
 !*/
 .*
 *.o
+log/*
 bin/*
 tmp/*
 .ycm_*
