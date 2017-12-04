@@ -1,3 +1,12 @@
+/* Borrowed from yedf/handy
+ *
+ * 
+ *
+ *
+ */
+
+
+
 #ifndef __LOGGING__
 #define __LOGGING__
 #include <string>

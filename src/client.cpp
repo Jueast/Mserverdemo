@@ -6,6 +6,7 @@
 #include <thread>
 #include "packed_message.hpp"
 #include "logging.hpp"
+#include "xml.hpp"
 using boost::asio::ip::tcp;
 typedef std::deque<PackedMessage> PackedMessageQueue;
 
@@ -121,9 +122,20 @@ int main(int argc, const char* argv[]){
         }
         using logging::Logger;
         using logging::level::level_enum;
+        pugi::xml_document doc;
+        pugi::xml_parse_result result = doc.load_file("client_config.xml");
+        std::cout << "Load result: " << result.description() << std::endl;
+        std::unordered_map<std::string, std::string> opt_dict;
+        for(pugi::xml_node option : doc.child("configuration").children()){
+            opt_dict.emplace(std::make_pair(option.name(), option.child_value()));
+        }
         Logger::getLogger().setFileName("log/test.log");
         Logger::getLogger().setLogLevel(level_enum::fatal);
         INFO("Hello, %s", "world");
+        INFO("IP: %s", opt_dict["IP"].c_str());
+        INFO("PORT: %s", opt_dict["port"].c_str());
+        INFO("Username: %s", opt_dict["username"].c_str());
+
         boost::asio::io_service io_service;
         tcp::resolver resolver(io_service);
         tcp::resolver::query query(argv[1], argv[2]);

@@ -1,14 +1,14 @@
 CC=g++
 STD=c++11
 INC_DIR=include
-CFLAGS=-lpthread -lboost_system -std=$(STD) -I. -I${INC_DIR} -lprotobuf
+CFLAGS=-lpthread -lboost_system -std=$(STD) -I. -I${INC_DIR} -lprotobuf -g
 SRC_DIR=src
 BIN_DIR=bin
 OBJ_DIR=obj
 PROTO_DIR=proto
 PROTO_NAME=request
 TEMP_DIR=prototmp
-OBJS=packed_message.o ${PROTO_NAME}.pb.o logging.o
+OBJS=packed_message.o ${PROTO_NAME}.pb.o logging.o pubixml.o
 DEPS=${INC_DIR}/packed_message.hpp 
 
 all: ${BIN_DIR} protobuf server client 
@@ -20,6 +20,9 @@ ${BIN_DIR}:
 ${PROTO_NAME}.pb.o: ${SRC_DIR}/${PROTO_NAME}.pb.cc ${INC_DIR}/${PROTO_NAME}.pb.h
 	$(CC) -o $@ -c $< $(CFLAGS)
 
+
+pubixml.o: ./pugixml/src/pugixml.cpp
+	$(CC) -o $@ -c $< $(CFLAGS)
 %.o: ${SRC_DIR}/%.cpp ${DEPS}
 	$(CC) -o $@ -c $< $(CFLAGS)
 server: server.o ${OBJS} 
