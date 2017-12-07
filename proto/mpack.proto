@@ -1,15 +1,45 @@
 syntax = "proto3";
-
+package Mpack;
 message Mpack 
 {
     enum MpackType 
     {
-        LOGIN = 0;
-        GETACCOUNT = 1;
-        RESOURCEFILE = 2;
+        HEARTBEAT = 0;
+        INFO = 1;
+        QUERY = 2;
+        MODIFY = 3;
     }
+    // Client/Server versions which should match. 
     int32 version = 1;
     MpackType type = 2;
-    int32 id = 3;
-    string content = 4; 
+    // True when the result is negative(Login error, Runtime error, ....) and details will be in content field.
+    bool error = 3;
+    // contain log information
+    string content = 4;
+
+    int32 uid = 5;
+    message Attribute{
+        string name;
+        int32 quantity;
+    } 
+    map<int32, Attribute> PlayerTransaction = 6;
+    map<int32, Attribute> WorldTransaction = 7;
+}
+
+message MpackLogin
+{
+    int32 uid = 1;
+    string username = 2;
+    string salt = 3;
+}
+
+message MpackConfigFiles
+{
+    message File 
+    {
+        int32 uid = 1;
+        string name = 2;
+        bytes content = 3;
+    }
+    repeated File files = 1;
 }
