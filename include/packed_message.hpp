@@ -1,5 +1,5 @@
-#ifndef PACKED_MESSAGE_HPP
-#define PACKED_MESSAGE_HPP
+#ifndef __PACKED_MESSAGE__
+#define __PACKED_MESSAGE__
 #include "request.pb.h"
 #include <array>
 #include <string>
@@ -10,7 +10,6 @@ public:
     enum { header_length = 4 };
     enum { max_body_length = 512 };
     typedef std::array<char, header_length+max_body_length> DataArray;
-
     PackedMessage() : body_length_(0) {}
     const DataArray & data() const{
         return data_;

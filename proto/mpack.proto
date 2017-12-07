@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+message Mpack 
+{
+    enum MpackType 
+    {
+        LOGIN = 0;
+        GETACCOUNT = 1;
+        RESOURCEFILE = 2;
+    }
+    int32 version = 1;
+    MpackType type = 2;
+    int32 id = 3;
+    string content = 4; 
+}
