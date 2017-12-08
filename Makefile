@@ -8,8 +8,8 @@ OBJ_DIR=obj
 PROTO_DIR=proto
 PROTO_NAME=mpack
 TEMP_DIR=prototmp
-OBJS=packed_message.o ${PROTO_NAME}.pb.o logging.o pubixml.o
-DEPS=${INC_DIR}/packed_message.hpp 
+OBJS=mpack_message.o ${PROTO_NAME}.pb.o logging.o pubixml.o
+DEPS=${INC_DIR}/mpack_message.hpp 
 
 all: ${BIN_DIR} protobuf server client 
 	rm *.o
