@@ -1,9 +1,13 @@
 #include "mpack_message.hpp"
 namespace MNet{
 
-uint32_t MpackMessage::decode_header(){
+bool MpackMessage::decode_header(){
     body_length_ = *(reinterpret_cast<uint32_t*>(data_));
-    return body_length_;
+    if(body_length_ > max_body_length){
+        body_length_ = 0;
+        return false; 
+    }
+    return true;
 }
 
 bool MpackMessage::encode_mpack(const Mpack& r){
@@ -18,7 +22,7 @@ bool MpackMessage::encode_mpack(const Mpack& r){
     return true;
 }
 Mpack MpackMessage::decode_mpack(){
-    Mpack::Mpack r;
+    Mpack r;
     decode_header();
     bool flag = r.ParseFromString(std::string(data_ + header_length, 
                                   data_ + header_length + body_length_));

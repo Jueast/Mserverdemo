@@ -4,9 +4,6 @@
  *
  *
  */
-
-
-
 #ifndef __LOGGING__
 #define __LOGGING__
 #include <string>
@@ -37,7 +34,7 @@ namespace level{
         debug = 1,
         info = 2,
         warn = 3,
-        err = 4,
+        error = 4,
         fatal = 5
     } level_enum;
 

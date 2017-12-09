@@ -32,7 +32,7 @@ public:
     uint32_t whole_size(){
         return header_length + body_length_;
     }
-    uint32_t decode_header();
+    bool decode_header();
     // Encode request in PackedMessage and update body_length at the same time
     bool encode_header(uint32_t l);
     bool encode_mpack(const Mpack& m); 
