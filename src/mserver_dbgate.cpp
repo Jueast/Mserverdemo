@@ -1,8 +1,10 @@
 #include "mserver_dbgate.hpp"
 #include "logging.hpp"
 #include "unistd.h"
+#include "xml.hpp"
 namespace MDB
 {
+
 
 MysqlConnPtr MDBConnectionPool::grab(int)
 {
@@ -36,6 +38,26 @@ inline void MDBConnectionPool::destroy(mysqlpp::Connection* pc)
 	delete pc;
 }
 
-
-
 }
+
+
+void MDBManager::init(const char* filename)
+{
+	pugi::xml_document doc;
+	pugi::xml_parse_result result = doc.load_file(filename);
+	INFO("MDBManager loaded %s: %s", filename, result.description());
+	pugi::xml_node conf = doc.child("configuration");
+	std::string db = conf.child("database").child_value();
+	std::string server = conf.child("server").child_value();
+	std::string user = conf.child("user").child_value();
+	std::string password = conf.child("password").child_value();
+	unsigned int soft_max_conns = atoi(conf.child("soft_max_conns").child_value());
+	unsigned int max_idle_time = atoi(conf.child("soft_max_conns").child_value());
+
+	pool_.init(db, server, user, password, soft_max_conns, max_idle_time);
+}
+
+
+
+
+

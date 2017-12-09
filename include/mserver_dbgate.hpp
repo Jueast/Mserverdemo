@@ -9,12 +9,17 @@ namespace MDB
 typedef std::shared_ptr<mysqlpp::Connection> MysqlConnPtr;
 class MDBConnectionPool : mysqlpp::ConnectionPool {
 public:
-	MDBConnectionPool(std::string db, std::string server,
-					  std::string user, std::string password,
-					  unsigned int soft_max_conns, unsigned max_idle_time) :
-			conns_in_use_(0), db_(db), server_(server), 
-			user_(user), password_(password), soft_max_conns_(soft_max_conns),
-			max_idle_time_(max_idle_time){}
+	void init(std::string db, std::string server,
+			  std::string user, std::string password,
+			  unsigned int soft_max_conns, unsigned max_idle_time)
+	{
+		db_ = db;
+		server_ = server;
+		user_ = user;
+		password_ = password;
+		soft_max_conns_ = soft_max_conns;
+		max_idle_time_ = max_idle_time;	
+	}
 	~MDBConnectionPool()
 	{
 		clear();
@@ -39,12 +44,13 @@ private:
 }
 class MDBManager {
 public:
-    void init();
+    void init(const char * filename);
 	MDB::MysqlConnPtr grab();
     static MDBManager& getMDBMgr();
 private:
     MDBManager() = default;
     ~MDBManager() = default;
+	MDB::MDBConnectionPool pool_;
 };
 
 
