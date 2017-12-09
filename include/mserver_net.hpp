@@ -46,7 +46,6 @@ private:
     SessionState state_;
 
 };
-}
 class NetworkManager{
 public:
     static NetworkManager& getNetMgr();
@@ -57,5 +56,5 @@ private:
 };
 
 
-
+}
 #endif

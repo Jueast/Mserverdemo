@@ -1,7 +1,8 @@
 CC=g++
 STD=c++11
 INC_DIR=include
-CFLAGS=-lpthread -lboost_system -std=$(STD) -I. -I${INC_DIR} -lprotobuf -g
+LDFLAGS=-lpthread -lboost_system -lprotobuf -lmysqlpp -lmysqlclient
+CFLAGS=-std=$(STD) -I. -I${INC_DIR} -g $(LDFLAGS)
 SRC_DIR=src
 BIN_DIR=bin
 OBJ_DIR=obj
