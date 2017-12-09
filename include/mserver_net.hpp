@@ -41,6 +41,7 @@ private:
 class NetworkManager{
 public:
     static NetworkManager& getNetMgr();
+	static void init(const char* filename);
 private:
     NetworkManager() = default;
     ~NetworkManager() = default;
