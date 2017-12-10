@@ -1,17 +1,15 @@
 #ifndef __MSERVER_DBGATE__
 #define __MSERVER_DBGATE__
-
+#include <string>
 #include <mysql++/mysql++.h>
-#include <mysql++/cpool.h>
 namespace MDB 
 {
-
 typedef std::shared_ptr<mysqlpp::Connection> MysqlConnPtr;
 class MDBConnectionPool : mysqlpp::ConnectionPool {
 public:
 	void init(std::string db, std::string server,
-			  std::string user, std::string password,
-			  unsigned int soft_max_conns, unsigned max_idle_time)
+		  std::string user, std::string password,
+		  unsigned int soft_max_conns, unsigned int max_idle_time)
 	{
 		db_ = db;
 		server_ = server;
@@ -36,7 +34,7 @@ protected:
 private:
 	using mysqlpp::ConnectionPool::grab;
 	unsigned int conns_in_use_;
-	std::string db_, server_, user_, password_;
+        std::string db_, server_, user_, password_;
 	// when conn_in_use_ > soft_max_conns, requests to get connection will be suspended. 
 	unsigned int soft_max_conns_, max_idle_time_;
 	
@@ -50,7 +48,7 @@ public:
 private:
     MDBManager() = default;
     ~MDBManager() = default;
-	MDB::MDBConnectionPool pool_;
+    MDB::MDBConnectionPool pool_;
 };
 
 
