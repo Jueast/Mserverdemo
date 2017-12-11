@@ -1,8 +1,9 @@
 CC=g++
 STD=c++11
 INC_DIR=include
-LDFLAGS=-lpthread -lboost_system -lprotobuf -lmysqlpp -lmysqlclient_r
-CFLAGS=-std=$(STD) -I. -I${INC_DIR} -g $(LDFLAGS)
+PROTOFLAGS=$(pkg-config --cflags --libs protobuf)
+LDFLAGS=-lpthread -lboost_system -lprotobuf -lmysqlpp -lmysqlclient
+CFLAGS=-Wall -std=$(STD) -I. -I${INC_DIR} -g $(LDFLAGS) -I/usr/include/mysql -L/usr/local/lib -I/usr/local/include
 SRC_DIR=src
 BIN_DIR=bin
 OBJ_DIR=obj
@@ -12,8 +13,9 @@ TEMP_DIR=prototmp
 OBJS=mpack_message.o ${PROTO_NAME}.pb.o logging.o pubixml.o
 DEPS=${INC_DIR}/mpack_message.hpp  
 
-all: ${BIN_DIR} protobuf server client 
+all: ${BIN_DIR} protobuf dbgate 
 	rm *.o
+	mkdir -p ${BIN_DIR}/log
 
 ${BIN_DIR}:
 	mkdir -p ${BIN_DIR}
@@ -26,10 +28,8 @@ pubixml.o: ./pugixml/src/pugixml.cpp
 	$(CC) -o $@ -c $< $(CFLAGS)
 %.o: ${SRC_DIR}/%.cpp ${DEPS}
 	$(CC) -o $@ -c $< $(CFLAGS)
-server: server.o ${OBJS} 
-	$(CC) -o ${BIN_DIR}/$@ $^ $(CFLAGS) 
 
-client: client.o ${OBJS} 
+dbgate: mserver_dbgate.o ${OBJS} 
 	$(CC) -o ${BIN_DIR}/$@ $^ $(CFLAGS)
 
 protobuf: ${PROTO_DIR}/${PROTO_NAME}.proto

@@ -17,7 +17,7 @@ MysqlConnPtr MDBConnectionPool::grab(int)
 	}
 	++conns_in_use_;
 	auto p = grab();
-	return MysqlConnPtr(p, [this, p]{ this->release(p); });
+	return MysqlConnPtr(p, [this](mysqlpp::Connection* p){ this->release(p); });
 }
 
 void MDBConnectionPool::release(mysqlpp::Connection* pc)
@@ -87,10 +87,10 @@ void MDBUDPServer::deliver(udp::endpoint ep, std::string s)
 void MDBUDPServer::do_write()
 {
     socket_.async_send_to(
-            boost::asio::buffer(write_data_.front().second()),
-            write_data_.front().first(),
-            [this]{
-                write_data_.pop();
+            boost::asio::buffer(write_data_.front().second),
+            write_data_.front().first,
+            [this](boost::system::error_code, std::size_t){
+                write_data_.pop_front();
                 if(!write_data_.empty()){
                     do_write();
                 }
@@ -123,7 +123,7 @@ void MDBManager::init(const char* filename)
     std::string ip(udp_conf.child("ip").child_value());
     std::string port(udp_conf.child("port").child_value());
     udp::endpoint ep(boost::asio::ip::address_v4::from_string(ip.c_str()), atoi(port.c_str())); 
-    
+	server_ptr_ = std::make_shared<MDB::MDBUDPServer>(io_service_, ep); 
 }
 
 void MDBManager::processRequest(MNet::Mpack m, boost::asio::ip::udp::endpoint ep) 
@@ -153,13 +153,13 @@ void MDBManager::do_login(int uid, std::string username, std::string salt, boost
     query.parse();
     mysqlpp::StoreQueryResult res = query.store(std::to_string(uid), username);
     bool flag = false;
-    if(res && res.num_rows != 0 && res[0]["salt"] == mysqlpp::String(salt)){
+    if(res && res.num_rows() != 0 && res[0]["salt"] == mysqlpp::String(salt)){
         flag = true;
     }
     MNet::Mpack m;
     m.set_type(MNet::Mpack::INFO);
     m.set_error(!flag);
-    server_.deliver(ep, m.SerializeAsString());
+    server_ptr_->deliver(ep, m.SerializeAsString());
 }
 
 int main(int argc, const char* argv[]){
@@ -181,6 +181,6 @@ int main(int argc, const char* argv[]){
         mgr.init("dbgate.conf");
     }
 
-
+	mgr.get_io_service().run();
 }
 

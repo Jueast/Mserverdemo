@@ -24,7 +24,7 @@ bool MpackMessage::encode_mpack(const Mpack& r){
 Mpack MpackMessage::decode_mpack(){
     Mpack r;
     decode_header();
-    bool flag = r.ParseFromString(std::string(data_ + header_length, 
+    r.ParseFromString(std::string(data_ + header_length, 
                                   data_ + header_length + body_length_));
     return r;
 }

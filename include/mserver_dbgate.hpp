@@ -44,8 +44,8 @@ private:
 using boost::asio::ip::udp;
 class MDBUDPServer {
 public:
-    MDBUDPServer();
-    ~MDBUDPServer();
+	MDBUDPServer(boost::asio::io_service& io_service, udp::endpoint& ep) : socket_(io_service, ep){}
+	~MDBUDPServer() = default;
     void init(udp::endpoint ep, boost::asio::io_service io_service); 
     void do_receive();
     void deliver(udp::endpoint ep, std::string s);
@@ -70,11 +70,11 @@ public:
         return io_service_;
     }
 private:
+	MDBManager() = default;
+	~MDBManager() = default;
     void do_login(int uid, std::string username, std::string salt, boost::asio::ip::udp::endpoint ep);
-    MDBManager() = default;
-    ~MDBManager() = default;
     MDB::MDBConnectionPool pool_;
-    MDB::MDBUDPServer server_;
+	std::shared_ptr<MDB::MDBUDPServer> server_ptr_;
     boost::asio::io_service io_service_;
     
 };
