@@ -10,7 +10,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <stdarg.h>
-namespace logging 
+namespace Logging 
 {
     using namespace level;
     Logger::Logger():level_(level_enum::info), lastRotate_(time(0)), rotateInterval_(3600)
@@ -138,7 +138,7 @@ namespace logging
                      filename_.c_str(), err, strerror(errno));
         }
 
-        if(level >= level_enum::err) {
+        if(level >= level_enum::error) {
             syslog(LOG_ERR, "%s", buffer + 27);
         }
         if (level == level_enum::fatal) {

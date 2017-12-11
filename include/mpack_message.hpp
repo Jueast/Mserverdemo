@@ -1,5 +1,5 @@
-#ifndef __PACKED_MESSAGE__
-#define __PACKED_MESSAGE__
+#ifndef __MPACK_MESSAGE__
+#define __MPACK_MESSAGE__
 #include "mpack.pb.h"
 #include <array>
 #include <string>
