@@ -13,16 +13,16 @@ public:
 	      std::string user, std::string password,
 	      unsigned int soft_max_conns, unsigned int max_idle_time)
     {
-	db_ = db;
-	server_ = server;
-	user_ = user;
-	password_ = password;
-	soft_max_conns_ = soft_max_conns;
-	max_idle_time_ = max_idle_time;	
+		db_ = db;
+		server_ = server;
+		user_ = user;
+		password_ = password;
+		soft_max_conns_ = soft_max_conns;
+		max_idle_time_ = max_idle_time;	
     }
     ~MDBConnectionPool()
     {
-	clear();
+		clear();
     }
     MysqlConnPtr grab(int);
     void release(mysqlpp::Connection* pc);
@@ -44,7 +44,9 @@ private:
 using boost::asio::ip::udp;
 class MDBUDPServer {
 public:
-	MDBUDPServer(boost::asio::io_service& io_service, udp::endpoint& ep) : socket_(io_service, ep){}
+	MDBUDPServer(boost::asio::io_service& io_service, udp::endpoint& ep) : socket_(io_service, ep){
+		do_receive();
+	}
 	~MDBUDPServer() = default;
     void init(udp::endpoint ep, boost::asio::io_service io_service); 
     void do_receive();

@@ -41,19 +41,14 @@ inline void MDBConnectionPool::destroy(mysqlpp::Connection* pc)
 }
 using boost::asio::ip::udp;
 
-void MDBUDPServer::init(udp::endpoint ep, boost::asio::io_service io_service)
-{
-    socket_ = udp::socket(MDBManager::getMDBMgr().get_io_service(), ep);
-    do_receive();
-}
-
 void MDBUDPServer::do_receive(){
     socket_.async_receive_from(
             boost::asio::buffer(read_data_), sender_endpoint_,
             [this](boost::system::error_code ec, std::size_t bytes_recvd){
                 if(!ec && bytes_recvd > 0)
                 {
-                    MNet::Mpack m;
+                    INFO("Receive message from %s", sender_endpoint_.address().to_string().c_str());
+					MNet::Mpack m;
                     m.ParsePartialFromArray(read_data_, bytes_recvd); 
                     MDBManager::getMDBMgr().processRequest(std::move(m), sender_endpoint_);
                     do_receive();
@@ -90,6 +85,7 @@ void MDBUDPServer::do_write()
             boost::asio::buffer(write_data_.front().second),
             write_data_.front().first,
             [this](boost::system::error_code, std::size_t){
+				INFO("Send a message to %s", write_data_.front().first.address().to_string().c_str());
                 write_data_.pop_front();
                 if(!write_data_.empty()){
                     do_write();
@@ -163,24 +159,30 @@ void MDBManager::do_login(int uid, std::string username, std::string salt, boost
 }
 
 int main(int argc, const char* argv[]){
-    MDBManager& mgr = MDBManager::getMDBMgr();
-    Logging::Logger& logger = Logging::Logger::getLogger();
-    logger.setFileName("log/dbgate.log");
-    logger.setLogLevel(Logging::level::fatal);
-    if(argc > 2)
-    {
-        std::cerr << "Usage: dbgate [configure filename ('dbgate.conf' as default)]\n";
-        exit(1);
-    }
-    if(argc == 2)
-    {
-        mgr.init(argv[1]);
-    }
-    else
-    {
-        mgr.init("dbgate.conf");
-    }
-
-	mgr.get_io_service().run();
+	try{
+		MDBManager& mgr = MDBManager::getMDBMgr();
+		Logging::Logger& logger = Logging::Logger::getLogger();
+		logger.setFileName("log/dbgate.log");
+		logger.setLogLevel(Logging::level::fatal);
+		if(argc > 2)
+	    {
+		    std::cerr << "Usage: dbgate [configure filename ('dbgate.conf' as default)]\n";
+			exit(1);
+		}
+		if(argc == 2)
+		{
+			mgr.init(argv[1]);
+		}
+		else
+		{
+			mgr.init("dbgate.conf");
+		}
+		mgr.get_io_service().run();
+	}
+	catch(std::exception& e)
+	{
+		std::cerr << e.what() << std::endl;
+	}
+	return 0;
 }
 
