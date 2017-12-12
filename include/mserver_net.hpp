@@ -19,7 +19,7 @@ public:
     {
     }
     void start();
-    void deliver(const MpackMessage& mm );
+    void deliver(const Mpack& mm );
 private:
     void do_read_header();
     void do_read_body();
@@ -29,7 +29,7 @@ private:
     MpackMessage read_message_;
     MpackMessageList write_message_list_;
 };
-
+class TCPServer;
 class NetworkSession : std::enable_shared_from_this<NetworkSession>{
 public:
     enum SessionState {
@@ -38,12 +38,30 @@ public:
         SESSION_QUERYING = 2,
         SESSION_MODIFYING = 3
     };
+	NetworkSession(tcp::socket socket, TCPServer& server) 
+			: conn_(std::move(socket), *this),
+			  server_(server){}
     void start();
-    void dispatch(MpackMessage m);
+    void dispatch(Mpack m);
     void close();
 private:
     NetworkConnection conn_;
     SessionState state_;
+	TCPServer& server_;
+};
+
+class TCPServer {
+public:
+	TCPServer(boost::asio::io_service& io_service,
+			  tcp::endpoint& ep):
+			acceptor_(io_service, ep),
+			socket_(io_service)					
+	{
+	}
+private:
+	tcp::acceptor acceptor_;
+	tcp::socket socket_;
+	std::unordered_map<int, std::shared_ptr<NetworkSession>> sessions_;
 
 };
 }
@@ -51,7 +69,12 @@ class NetworkManager{
 public:
     static NetworkManager& getNetMgr();
     static void init(const char* filename);
+	boost::asio::io_service& get_io_service()
+	{
+		return io_service_;
+	}
 private:
+	boost::asio::io_service io_service_;
     NetworkManager() = default;
     ~NetworkManager() = default;
 };

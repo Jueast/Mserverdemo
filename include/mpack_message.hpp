@@ -8,6 +8,9 @@
 namespace MNet{
 class MpackMessage{
 public:
+	MpackMessage(const Mpack& m){
+		encode_mpack(m);
+	};
     enum { header_length = 4 };
     enum { max_body_length = 65500 };
     MpackMessage() : body_length_(0) {}

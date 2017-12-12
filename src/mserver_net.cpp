@@ -9,10 +9,10 @@ void NetworkConnection::start()
     do_read_header();
 }
 
-void NetworkConnection::deliver(const MpackMessage& m)
-{
-    bool write_in_progress = !write_message_list_.empty();
-    write_message_list_.push_back(m);
+void NetworkConnection::deliver(const Mpack& m)
+{	
+	bool write_in_progress = !write_message_list_.empty();
+    write_message_list_.emplace_back(m);
     if(!write_in_progress)
     {
         do_write();
@@ -55,7 +55,9 @@ void NetworkConnection::do_read_body()
             {
                 if(!ec)
                 {
-                    session_.dispatch(std::move(read_message_));
+                    Mpack m;
+					m.ParsePartialFromArray(read_message_.body(), l);
+					session_.dispatch(std::move(m));
                     do_read_header();
                 }
                 else
@@ -98,4 +100,11 @@ void NetworkSession::start()
 }
 
 }
+
+NetworkManager& NetworkManager::getNetMgr()
+{
+	static NetworkManager mgr;
+	return mgr;
+}
+
 

@@ -21,9 +21,13 @@ message States {
     message Attribute{
         string name = 1;
         int32 quantity = 2;
-    } 
-    map<int32, Attribute> PlayerTransaction = 1;
-    map<int32, Attribute> WorldTransaction = 2;
+    }
+	message PlayerTransaction {
+		int32 uid = 1;
+		map<int32, Attribute> PlayerTransaction = 2;
+	}
+	repeated PlayerTransaction player_attrs = 1;
+    map<int32, Attribute> world_attrs = 2;
 
 }
 message Mpack 
@@ -47,7 +51,7 @@ message Mpack
     bool error = 3;
     // contain log information
     string content = 4;
-    int32 uid = 5;
+    int32 session_id = 5;
 
     Login login = 6; 
     Files Files = 7;
