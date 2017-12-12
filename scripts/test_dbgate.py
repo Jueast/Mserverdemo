@@ -1,7 +1,7 @@
 import mpack_pb2
 import socket
 import hashlib
-
+import time
 def buildLoginMpack(uid, username, salt):
     m = mpack_pb2.Mpack()
     m.type = mpack_pb2.Mpack.LOGIN
@@ -31,6 +31,7 @@ try:
         message = m.SerializeToString();
         print("sending {}".format(str(m)))
         sent = udpsocket.sendto(message, server_address)
+        time.sleep(2)
         print("waitting to receive")
         data, server = udpsocket.recvfrom(8096)
         m2 = mpack_pb2.Mpack()
