@@ -1,0 +1,57 @@
+syntax = "proto3";
+package MNet;
+message Login
+{
+    int32 uid = 1;
+    string username = 2;
+    string salt = 3;
+}
+
+message Files
+{
+    message File 
+    {
+        int32 uid = 1;
+        string name = 2;
+        bytes content = 3;
+    }
+    repeated File files = 1;
+}
+message States {
+    message Attribute{
+        string name = 1;
+        int32 quantity = 2;
+    } 
+    map<int32, Attribute> PlayerTransaction = 1;
+    map<int32, Attribute> WorldTransaction = 2;
+
+}
+message Mpack 
+{
+    enum MpackType 
+    {
+        HEARTBEAT = 0;
+        INFO = 1;
+
+        LOGIN = 2;
+        FILSE = 3;
+
+        STATE_QUERY = 4;
+        STATE_MODIFY = 5;
+
+    }
+    // Client/Server versions which should match. 
+    int32 version = 1;
+    MpackType type = 2;
+    // True when the result is negative(Login error, Runtime error, ....) and details will be in content field.
+    bool error = 3;
+    // contain log information
+    string content = 4;
+    int32 uid = 5;
+
+    Login login = 6; 
+    Files Files = 7;
+    States States = 8;
+}
+
+

@@ -10,3 +10,4 @@ tmp/*
 prototmp/*
 src/*.pb.*
 include/*.pb.*
+scripts/*_pb2.py

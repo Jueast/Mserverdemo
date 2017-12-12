@@ -4,30 +4,27 @@
  *
  *
  */
-
-
-
 #ifndef __LOGGING__
 #define __LOGGING__
 #include <string>
 #include <atomic>
 #define hlog(level, ...) \
     do { \
-        logging::Logger::getLogger().logv(level, __FILE__, __LINE__, __func__, __VA_ARGS__);    \
+        Logging::Logger::getLogger().logv(level, __FILE__, __LINE__, __func__, __VA_ARGS__);    \
     } while(0)
 
 
 
-#define TRACE(...) hlog(logging::level::level_enum::trace, __VA_ARGS__)
-#define DEBUG(...) hlog(logging::level::level_enum::debug, __VA_ARGS__)
-#define INFO(...) hlog(logging::level::level_enum::info, __VA_ARGS__)
-#define WARN(...) hlog(logging::level::level_enum::warn, __VA_ARGS__)
-#define ERROR(...) hlog(logging::level::level_enum::error, __VA_ARGS__)
-#define FATAL(...) hlog(logging::level::level_enum::fatal, __VA_ARGS__)
-#define FATALIF(b, ...) do { if((b)) { hlog(logging::level::level_enum::fatal, __VA_ARGS__); } } while (0)
-#define CHECK(b, ...) do { if((b)) { hlog(logging::level::level_enum::fatal, __VA_ARGS__); } } while (0)
-#define EXITIF(b, ...) do { if ((b)) { hlog(logging::level::level_enum::error, __VA_ARGS__); _exit(1); }} while(0)
-namespace logging 
+#define TRACE(...) hlog(Logging::level::level_enum::trace, __VA_ARGS__)
+#define DEBUG(...) hlog(Logging::level::level_enum::debug, __VA_ARGS__)
+#define INFO(...) hlog(Logging::level::level_enum::info, __VA_ARGS__)
+#define WARN(...) hlog(Logging::level::level_enum::warn, __VA_ARGS__)
+#define ERROR(...) hlog(Logging::level::level_enum::error, __VA_ARGS__)
+#define FATAL(...) hlog(Logging::level::level_enum::fatal, __VA_ARGS__)
+#define FATALIF(b, ...) do { if((b)) { hlog(Logging::level::level_enum::fatal, __VA_ARGS__); } } while (0)
+#define CHECK(b, ...) do { if((b)) { hlog(Logging::level::level_enum::fatal, __VA_ARGS__); } } while (0)
+#define EXITIF(b, ...) do { if ((b)) { hlog(Logging::level::level_enum::error, __VA_ARGS__); _exit(1); }} while(0)
+namespace Logging 
 {
 
 
@@ -37,14 +34,14 @@ namespace level{
         debug = 1,
         info = 2,
         warn = 3,
-        err = 4,
+        error = 4,
         fatal = 5
     } level_enum;
 
 #define LEVEL_NAMES { "TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "FATAL" }
 static const char* level_names[] LEVEL_NAMES;
 
-inline const char* to_str(logging::level::level_enum l){
+inline const char* to_str(Logging::level::level_enum l){
     return level_names[l];
 }
 }
