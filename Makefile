@@ -7,6 +7,7 @@ CFLAGS=-Wall -std=$(STD) -I. -I${INC_DIR} -g $(LDFLAGS) -I/usr/include/mysql -L/
 SRC_DIR=src
 BIN_DIR=bin
 OBJ_DIR=obj
+SCRIPTS_DIR=scripts
 PROTO_DIR=proto
 PROTO_NAME=mpack
 TEMP_DIR=prototmp
@@ -34,7 +35,7 @@ dbgate: mserver_dbgate.o ${OBJS}
 
 protobuf: ${PROTO_DIR}/${PROTO_NAME}.proto
 	mkdir -p ${TEMP_DIR}
-	protoc -I=${PROTO_DIR} --cpp_out=${TEMP_DIR} ${PROTO_DIR}/${PROTO_NAME}.proto
+	protoc -I=${PROTO_DIR} --cpp_out=${TEMP_DIR} --python_out=${SCRIPTS_DIR} ${PROTO_DIR}/${PROTO_NAME}.proto
 	mv ${TEMP_DIR}/${PROTO_NAME}.pb.h ${INC_DIR}/
 	mv ${TEMP_DIR}/${PROTO_NAME}.pb.cc ${SRC_DIR}/
 	rm -r ${TEMP_DIR}

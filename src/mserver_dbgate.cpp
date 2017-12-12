@@ -28,7 +28,7 @@ void MDBConnectionPool::release(mysqlpp::Connection* pc)
 
 inline mysqlpp::Connection* MDBConnectionPool::create()
 {
-	return new mysqlpp::Connection(
+        return new mysqlpp::Connection(
 		db_.c_str(),
 		server_.c_str(),
 		user_.c_str(),
@@ -143,9 +143,11 @@ void MDBManager::processRequest(MNet::Mpack m, boost::asio::ip::udp::endpoint ep
 
 void MDBManager::do_login(int uid, std::string username, std::string salt, boost::asio::ip::udp::endpoint ep)
 {
+    INFO("Authenticating user...uid: %d, username: %s", uid, username.c_str());
     auto conn = pool_.grab(0);
+    DEBUG("Get connection from pool");
     // check if uid or username exists
-    mysqlpp::Query query = conn->query("select * from users_salts where uid = %0:uid OR username = %1:username");
+    mysqlpp::Query query = conn->query("select * from users_salts where uid = %0:uid OR username = %1q:username");
     query.parse();
     mysqlpp::StoreQueryResult res = query.store(std::to_string(uid), username);
     bool flag = false;
