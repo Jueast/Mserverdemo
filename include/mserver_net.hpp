@@ -48,6 +48,21 @@ private:
 	std::unordered_map<uint32_t, NetSessionPtr> sessions_;
 
 };
+using boost::asio::ip::udp;
+class UDPServer {
+public:
+	UDPServer(boost::asio::io_service& io_service,
+			  udp::endpoint self_address)
+			: recv_socket_(io_service, self_address){}
+
+//TODO implement UDPServer
+private:
+	udp::socket recv_socket_;
+
+    udp::endpoint dbgate_address_;
+};
+
+
 }
 class NetworkManager{
 public:
@@ -65,6 +80,7 @@ public:
 private:
     boost::asio::io_service io_service_;
     std::unique_ptr<MNet::TCPServer> tcp_server_ptr_;
+	std::unique_ptr<MNet::UDPServer> udp_server_ptr_;
     NetworkManager() = default;
     ~NetworkManager() = default;
 };
