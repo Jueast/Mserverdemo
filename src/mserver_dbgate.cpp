@@ -20,7 +20,7 @@ MysqlConnPtr MDBConnectionPool::grab(int)
 	return MysqlConnPtr(p, [this](mysqlpp::Connection* p){ this->release(p); });
 }
 
-void MDBConnectionPool::release(mysqlpp::Connection* pc)
+void MDBConnectionPool::release(const mysqlpp::Connection* pc)
 {
 	mysqlpp::ConnectionPool::release(pc);
 	--conns_in_use_;
@@ -141,21 +141,22 @@ void MDBManager::processRequest(MNet::Mpack m, boost::asio::ip::udp::endpoint ep
     }
 }
 
-void MDBManager::do_login(int uid, std::string username, std::string salt, boost::asio::ip::udp::endpoint ep)
+void MDBManager::do_login(uint32_t uid, std::string username, std::string salt, boost::asio::ip::udp::endpoint ep)
 {
     INFO("Authenticating user...uid: %d, username: %s", uid, username.c_str());
     auto conn = pool_.grab(0);
-    DEBUG("Get connection from pool");
     // check if uid or username exists
-    mysqlpp::Query query = conn->query("select * from users_salts where uid = %0:uid OR username = %1q:username");
+    mysqlpp::Query query = conn->query("select * from users_salts where uid = %0:uid OR username = %1q:username ");
     query.parse();
     mysqlpp::StoreQueryResult res = query.store(std::to_string(uid), username);
     bool flag = false;
     if(res && res.num_rows() != 0 && res[0]["salt"] == mysqlpp::String(salt)){
         flag = true;
     }
+    
     MNet::Mpack m;
-    m.set_type(MNet::Mpack::INFO);
+    DEBUGIF(!flag, "Login failed!");
+    m.set_type(MNet::Mpack::CONTROL);
     m.set_error(!flag);
     server_ptr_->deliver(ep, m.SerializeAsString());
 }

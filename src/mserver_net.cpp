@@ -4,99 +4,95 @@
 namespace MNet 
 {
 
-void NetworkConnection::start()
-{
-    do_read_header();
-}
-
-void NetworkConnection::deliver(const Mpack& m)
-{	
-	bool write_in_progress = !write_message_list_.empty();
-    write_message_list_.emplace_back(m);
-    if(!write_in_progress)
-    {
-        do_write();
-    }
-
-}
-void NetworkConnection::do_read_header()
-{
-    auto self(shared_from_this());
-    boost::asio::async_read(socket_,
-        boost::asio::buffer(read_message_.data(), MpackMessage::header_length),
-        [this, self](boost::system::error_code ec, std::size_t l)
-        {
-            if(!ec && read_message_.decode_header())
-            {
-               do_read_body(); 
-            }
-            else
-            {
-                if(ec)
-                {
-                    ERROR("boost asio error: %s", ec.message().c_str());  
-                // too long mpack means this connection should be abandoned.
-                }
-                else
-                {
-                    ERROR("Too long Mpack from %s", socket_.remote_endpoint().address().to_string().c_str());
-                }
-                session_.close();             
-            }
-        });
-}
-
-void NetworkConnection::do_read_body()
-{
-    auto self(shared_from_this());
-    boost::asio::async_read(socket_,
-            boost::asio::buffer(read_message_.body(), read_message_.body_length()),
-            [this, self](boost::system::error_code ec, std::size_t l)
-            {
-                if(!ec)
-                {
-                    Mpack m;
-					m.ParsePartialFromArray(read_message_.body(), l);
-					session_.dispatch(std::move(m));
-                    do_read_header();
-                }
-                else
-                {
-                    ERROR("boost asio error: %s", ec.message().c_str());
-                    session_.close();
-                }
-            });
-    
-}
-
-void NetworkConnection::do_write()
-{
-    auto self(shared_from_this());
-    boost::asio::async_write(socket_,
-            boost::asio::buffer(write_message_list_.front().data(), 
-                                write_message_list_.front().whole_size()),
-            [this, self](boost::system::error_code ec, std::size_t l)
-            {
-                if(!ec)
-                {
-                    write_message_list_.pop_front();
-                    if(!write_message_list_.empty())
-                    {
-                        do_write();
-                    }
-                }
-                else
-                {
-                    ERROR("boost asio error: %s", ec.message().c_str());
-                }
-
-            });
-
-}
-
 void NetworkSession::start()
 {
     conn_.start();
+}
+
+
+void NetworkSession::dispatch(Mpack m)
+{
+    if(m.type() == Mpack::HEARTBEAT)
+    {
+        //TODO update timer;
+    }
+    // set session_id here.
+    m.set_session_id(session_id_);
+    // dispatch according to state
+    switch(state_) {
+        case SESSION_UNAUTHORIZED:
+        {
+            dispatch_unauthorized(std::move(m));
+        }
+        default:
+            break;
+    }
+}
+
+void NetworkSession::dispatch_unauthorized(Mpack m)
+{
+    switch(m.type()){
+        case Mpack::LOGIN:
+        {
+            NetworkManager::getNetMgr().login(std::move(m));
+            break;
+        }
+        // TODO other type
+        default:
+            break;
+    }
+    
+}
+
+
+
+TCPServer::TCPServer(boost::asio::io_service& io_service,
+		  tcp::endpoint& ep,
+                  uint32_t max_num_of_sessions)
+            :  acceptor_(io_service, ep),
+	       socket_(io_service)					
+{
+    session_nums_.resize(max_num_of_sessions);
+    for(uint32_t i = 0; i < session_nums_.size(); i++)
+    {
+        session_nums_[i] = i+1; // initilize ids of sessions to assign.
+    }
+    do_accept();
+}
+
+TCPServer::NetSessionPtr TCPServer::create_session()
+{
+    uint32_t x = session_nums_.front();
+    session_nums_.pop_front();
+    auto p = NetSessionPtr(
+                new NetworkSession(std::move(socket_), *this, x),
+                [this, x](NetworkSession* p){
+                    release_session(p, x); 
+                    // release the session number when resource itself is relesed;
+                });
+    sessions_.insert({x, p});
+    return p;
+};
+
+void TCPServer::release_session(NetworkSession * p, uint32_t x) 
+{
+    session_nums_.push_back(x);
+    delete p;   
+};
+
+void TCPServer::do_accept()
+{
+    acceptor_.async_accept(socket_,
+            [this](boost::system::error_code& ec){
+                if(!ec)
+                {
+                    create_session()->start();    
+                }
+                else
+                {
+                    ERROR("boost asio error: %s", ec.message().c_str());  
+                }
+            });
 }
 
 }
@@ -107,4 +103,5 @@ NetworkManager& NetworkManager::getNetMgr()
 	return mgr;
 }
 
+//TODO NetworkManager
 

@@ -25,7 +25,7 @@ public:
 		clear();
     }
     MysqlConnPtr grab(int);
-    void release(mysqlpp::Connection* pc);
+    void release(const mysqlpp::Connection*);
 protected:
     mysqlpp::Connection* create();
     void destroy(mysqlpp::Connection* pc);
@@ -74,7 +74,7 @@ public:
 private:
 	MDBManager() = default;
 	~MDBManager() = default;
-    void do_login(int uid, std::string username, std::string salt, boost::asio::ip::udp::endpoint ep);
+    void do_login(uint32_t uid, std::string username, std::string salt, boost::asio::ip::udp::endpoint ep);
     MDB::MDBConnectionPool pool_;
 	std::shared_ptr<MDB::MDBUDPServer> server_ptr_;
     boost::asio::io_service io_service_;

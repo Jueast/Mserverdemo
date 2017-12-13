@@ -18,17 +18,18 @@ if __name__ == '__main__':
 try:
     
     testcases = [
-        (1, "test", "123456"),
-        (2, "test", "123456"),
-        (1, "test2", "123456"),
-        (2, "test2", "123456"),
-        (1, "test", "1234"),
-        (2, "test", "1234"),
-        (1, "test2", "1234"),
-        (2, "test2", "1234")
+        ((1, "admin", "123456"), False),
+        ((2, "admin", "123456"), False),
+        ((1, "test2", "123456"), False),
+        ((2, "test2", "123456"), True),
+        ((1, "admin", "1234"), True),
+        ((2, "admin", "1234"), True),
+        ((1, "test2", "1234"), True),
+        ((2, "test2", "1234"), True)
     ]
-    def sendtest(m):
+    def sendtest(m, result):
         message = m.SerializeToString();
+        print("==============================")
         print("sending {}".format(str(m)))
         sent = udpsocket.sendto(message, server_address)
         time.sleep(2)
@@ -37,10 +38,11 @@ try:
         m2 = mpack_pb2.Mpack()
         m2.ParseFromString(data)
         print("Result is {}".format(str(m2)))
+        print("Desired result is error: {}".format(str(result)))
 
     for t in testcases:
-        m = buildLoginMpack(*t);
-        sendtest(m);
+        m = buildLoginMpack(*t[0]);
+        sendtest(m, t[1]);
 
 finally:
     print('closing socket')

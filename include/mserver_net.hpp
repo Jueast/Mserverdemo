@@ -3,32 +3,10 @@
 #include <deque>
 #include <boost/asio.hpp>
 #include "mpack_message.hpp"
+#include "mserver_net_connection.hpp"
 namespace MNet
 {
 
-using boost::asio::ip::tcp;
-typedef std::deque<MpackMessage> MpackMessageList;
-class NetworkSession;
-//inherited from enable... to make it easy to produce shared pointers.
-class NetworkConnection : std::enable_shared_from_this<NetworkConnection> 
-{
-public:
-    NetworkConnection(tcp::socket socket, NetworkSession& session) 
-        : socket_(std::move(socket)),
-          session_(session)
-    {
-    }
-    void start();
-    void deliver(const Mpack& mm );
-private:
-    void do_read_header();
-    void do_read_body();
-    void do_write();
-    tcp::socket socket_;
-    NetworkSession& session_;
-    MpackMessage read_message_;
-    MpackMessageList write_message_list_;
-};
 class TCPServer;
 class NetworkSession : std::enable_shared_from_this<NetworkSession>{
 public:
@@ -38,43 +16,55 @@ public:
         SESSION_QUERYING = 2,
         SESSION_MODIFYING = 3
     };
-	NetworkSession(tcp::socket socket, TCPServer& server) 
-			: conn_(std::move(socket), *this),
-			  server_(server){}
+    NetworkSession(tcp::socket socket, TCPServer& server, uint32_t session_id) 
+		    : conn_(std::move(socket), *this),
+                      state_(SESSION_UNAUTHORIZED),
+		      server_(server),
+                      session_id_(session_id){}
     void start();
     void dispatch(Mpack m);
     void close();
 private:
+    void dispatch_unauthorized(Mpack m);
     NetworkConnection conn_;
     SessionState state_;
-	TCPServer& server_;
+    TCPServer& server_;
+    uint32_t session_id_;
 };
 
 class TCPServer {
 public:
 	TCPServer(boost::asio::io_service& io_service,
-			  tcp::endpoint& ep):
-			acceptor_(io_service, ep),
-			socket_(io_service)					
-	{
-	}
+		  tcp::endpoint& ep,
+                  uint32_t max_num_of_sessions);
+        typedef std::shared_ptr<NetworkSession> NetSessionPtr;
+        NetSessionPtr create_session();
+        void release_session(NetworkSession * p, uint32_t x);
 private:
+        void do_accept();
 	tcp::acceptor acceptor_;
 	tcp::socket socket_;
-	std::unordered_map<int, std::shared_ptr<NetworkSession>> sessions_;
+        std::deque<uint32_t> session_nums_;
+	std::unordered_map<uint32_t, NetSessionPtr> sessions_;
 
 };
 }
 class NetworkManager{
 public:
     static NetworkManager& getNetMgr();
-    static void init(const char* filename);
-	boost::asio::io_service& get_io_service()
-	{
-		return io_service_;
-	}
+    void init(const char* filename);
+    boost::asio::io_service& get_io_service()
+    {
+	return io_service_;
+    }
+    // blocking login.
+    void login(MNet::Mpack m);
+
+
+
 private:
-	boost::asio::io_service io_service_;
+    boost::asio::io_service io_service_;
+    std::unique_ptr<MNet::TCPServer> tcp_server_ptr_;
     NetworkManager() = default;
     ~NetworkManager() = default;
 };
