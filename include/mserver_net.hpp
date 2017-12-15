@@ -6,9 +6,8 @@
 #include "mserver_net_connection.hpp"
 namespace MNet
 {
-
 class TCPServer;
-class NetworkSession : std::enable_shared_from_this<NetworkSession>{
+class NetworkSession : public std::enable_shared_from_this<NetworkSession>{
 public:
     enum SessionState {
         SESSION_UNAUTHORIZED = 0,
@@ -23,9 +22,11 @@ public:
                       session_id_(session_id){}
     void start();
     void dispatch(Mpack m);
+    void deliver(Mpack r);
     void close();
 private:
     void dispatch_unauthorized(Mpack m);
+    void deliver_unauthorized(Mpack r);
     NetworkConnection conn_;
     SessionState state_;
     TCPServer& server_;
@@ -40,6 +41,8 @@ public:
         typedef std::shared_ptr<NetworkSession> NetSessionPtr;
         NetSessionPtr create_session();
         void release_session(NetworkSession * p, uint32_t x);
+        void deliver(Mpack r);
+        void close(uint32_t session_id_);
 private:
         void do_accept();
 	tcp::acceptor acceptor_;
@@ -51,19 +54,24 @@ private:
 using boost::asio::ip::udp;
 class UDPServer {
 public:
-	UDPServer(boost::asio::io_service& io_service,
-			  udp::endpoint self_address)
-			: recv_socket_(io_service, self_address){}
-
+    UDPServer(boost::asio::io_service& io_service,
+	      udp::endpoint self_address,
+              udp::endpoint dbgate_address)
+	    : recv_socket_(io_service, self_address),
+              dbgate_address_(dbgate_address){}
+    udp::endpoint get_dbgate_address()
+    {
+        return dbgate_address_;
+    }
 //TODO implement UDPServer
 private:
-	udp::socket recv_socket_;
-
+    udp::socket recv_socket_;
     udp::endpoint dbgate_address_;
 };
 
 
 }
+using boost::asio::ip::udp;
 class NetworkManager{
 public:
     static NetworkManager& getNetMgr();
@@ -74,15 +82,15 @@ public:
     }
     // blocking login.
     void login(MNet::Mpack m);
-
+    
 
 
 private:
-    boost::asio::io_service io_service_;
-    std::unique_ptr<MNet::TCPServer> tcp_server_ptr_;
-	std::unique_ptr<MNet::UDPServer> udp_server_ptr_;
     NetworkManager() = default;
     ~NetworkManager() = default;
+    boost::asio::io_service io_service_;
+    std::shared_ptr<MNet::TCPServer> tcp_server_ptr_;
+    std::shared_ptr<MNet::UDPServer> udp_server_ptr_;
 };
 
 

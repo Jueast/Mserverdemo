@@ -20,11 +20,10 @@ void NetworkConnection::deliver(const Mpack& m)
 
 }
 void NetworkConnection::do_read_header()
-{
-    auto self(shared_from_this());
+{ 
     boost::asio::async_read(socket_,
         boost::asio::buffer(read_message_.data(), MpackMessage::header_length),
-        [this, self](boost::system::error_code ec, std::size_t l)
+        [this](boost::system::error_code ec, std::size_t l)
         {
             if(!ec && read_message_.decode_header())
             {
@@ -48,10 +47,9 @@ void NetworkConnection::do_read_header()
 
 void NetworkConnection::do_read_body()
 {
-    auto self(shared_from_this());
     boost::asio::async_read(socket_,
             boost::asio::buffer(read_message_.body(), read_message_.body_length()),
-            [this, self](boost::system::error_code ec, std::size_t l)
+            [this](boost::system::error_code ec, std::size_t l)
             {
                 if(!ec)
                 {
@@ -71,11 +69,10 @@ void NetworkConnection::do_read_body()
 
 void NetworkConnection::do_write()
 {
-    auto self(shared_from_this());
     boost::asio::async_write(socket_,
             boost::asio::buffer(write_message_list_.front().data(), 
                                 write_message_list_.front().whole_size()),
-            [this, self](boost::system::error_code ec, std::size_t l)
+            [this](boost::system::error_code ec, std::size_t l)
             {
                 if(!ec)
                 {

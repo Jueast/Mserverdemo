@@ -8,8 +8,7 @@ namespace MNet
 using boost::asio::ip::tcp;
 typedef std::deque<MpackMessage> MpackMessageList;
 class NetworkSession;
-//inherited from enable... to make it easy to produce shared pointers.
-class NetworkConnection : std::enable_shared_from_this<NetworkConnection> 
+class NetworkConnection  
 {
 public:
     NetworkConnection(tcp::socket socket, NetworkSession& session) 
