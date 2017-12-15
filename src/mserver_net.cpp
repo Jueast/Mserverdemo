@@ -130,6 +130,7 @@ void TCPServer::do_accept()
                 {
                     ERROR("boost asio error: %s", ec.message().c_str());  
                 }
+				do_accept();
             });
 }
 
