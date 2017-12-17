@@ -30,6 +30,12 @@ message States {
     map<uint32, Attribute> world_attrs = 2;
 
 }
+message Command {
+	string action;
+	uint32 object;
+	uint32 value;
+}
+
 message Mpack 
 {
     enum MpackType 
@@ -42,7 +48,7 @@ message Mpack
 
         STATE_QUERY = 5;
         STATE_MODIFY = 6;
-
+		COMMAND = 7;
     }
     // Client/Server versions which should match. 
     uint32 version = 1;
@@ -54,8 +60,9 @@ message Mpack
     uint32 session_id = 5;
 
     Login login = 6; 
-    Files Files = 7;
-    States States = 8;
+    Files files = 7;
+    States states = 8;
+	Command command = 9;
 }
 
 
