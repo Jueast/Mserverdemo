@@ -70,6 +70,7 @@ void NetworkSession::deliver_unauthorized(Mpack r)
             if(!r.error())
             {
                 state_ = SESSION_AUTHORIZED;
+                INFO("Session %u was authorized now.", session_id_);
             }
             conn_.deliver(std::move(r));
             break;
@@ -109,6 +110,7 @@ TCPServer::NetSessionPtr TCPServer::create_session()
                      //release the session number when resource itself is relesed;
                     });
     sessions_.insert({x, p});
+    INFO("Connection get, session created.(id: %u)", x);
     return p;
 };
 
@@ -142,6 +144,7 @@ void TCPServer::deliver(Mpack r)
 
 void TCPServer::close(uint32_t session_id)
 {
+    INFO("Session %u closed.", session_id);
     sessions_.erase(session_id);
 }
 
@@ -156,6 +159,7 @@ NetworkManager& NetworkManager::getNetMgr()
 
 void NetworkManager::login(MNet::Mpack m) 
 {
+    INFO("Get login request from session %u", m.session_id());
     boost::asio::spawn(io_service_,
         [this, m](boost::asio::yield_context yield){
             char data[4096];
@@ -203,5 +207,5 @@ void NetworkManager::init(const char* filename)
 
     udp_server_ptr_ = std::make_shared<MNet::UDPServer>(io_service_, u_ep, db_ep);
     tcp_server_ptr_ = std::make_shared<MNet::TCPServer>(io_service_, t_ep, max_num);
-
+    INFO("NetworkManager was initialized now.");
 }
