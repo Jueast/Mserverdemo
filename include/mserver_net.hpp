@@ -2,6 +2,7 @@
 #define __MSERVER_NET__
 #include <deque>
 #include <boost/asio.hpp>
+#include <boost/asio/spawn.hpp>
 #include "mpack_message.hpp"
 #include "mserver_net_connection.hpp"
 namespace MNet
@@ -82,8 +83,7 @@ public:
     }
     // blocking login.
     void login(MNet::Mpack m);
-    
-
+	void sync(MNet::Mpack m); 
 
 private:
     NetworkManager() = default;

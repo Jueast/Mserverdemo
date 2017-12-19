@@ -1,5 +1,6 @@
 #include "mserver_net.hpp"
 #include "mpack_message.hpp"
+#include "mserver_state.hpp"
 #include <memory>
 #include "logging.hpp"
 #include <boost/asio/spawn.hpp>
@@ -156,7 +157,29 @@ NetworkManager& NetworkManager::getNetMgr()
 	static NetworkManager mgr;
 	return mgr;
 }
-
+void NetworkManager::sync(MNet::Mpack m) 
+{
+	INFO("Sync gameserver data to dbgate..");
+	boost::asio::spawn(io_service_,
+		[this, m](boost::asio::yield_context yield)
+		{
+			char data[4096];
+			m.SerializeToArray(data, 4096);
+			udp::socket sock(io_service_);
+			sock.open(udp::v4());
+			sock.async_send_to(
+				boost::asio::buffer(data),
+				udp_server_ptr_->get_dbgate_address(),
+				yield);
+			udp::endpoint from;
+			std::size_t l = sock.async_receive_from(boost::asio::buffer(data), from, yield);
+			DEBUG("Get udp control message from %s", from.address().to_string().c_str());
+            MNet::Mpack r;
+            r.ParseFromArray(data, l);
+            r.set_session_id(m.session_id());
+			StateManager::getStateMgr().addTask(std::move(r));	
+		});
+}
 void NetworkManager::login(MNet::Mpack m) 
 {
     INFO("Get login request from session %u", m.session_id());
@@ -176,6 +199,7 @@ void NetworkManager::login(MNet::Mpack m)
             MNet::Mpack r;
             r.ParseFromArray(data, l);
             r.set_session_id(m.session_id());
+			r.set_type(MNet::Mpack::INFO);
             tcp_server_ptr_->deliver(std::move(r));   
             }); 
             

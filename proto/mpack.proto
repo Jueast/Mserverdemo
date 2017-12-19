@@ -58,11 +58,11 @@ message Mpack
     // contain log information
     string content = 4;
     uint32 session_id = 5;
-
-    Login login = 6; 
-    Files files = 7;
-    States states = 8;
-	Command command = 9;
+    int64 time = 6;
+    Login login = 7; 
+    Files files = 8;
+    States states = 9;
+	Command command = 10;
 }
 
 
