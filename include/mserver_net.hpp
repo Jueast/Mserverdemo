@@ -77,18 +77,13 @@ class NetworkManager{
 public:
     static NetworkManager& getNetMgr();
     void init(const char* filename);
-    boost::asio::io_service& get_io_service()
-    {
-	return io_service_;
-    }
     // blocking login.
     void login(MNet::Mpack m);
-	void sync(MNet::Mpack m); 
-
+    void sync(MNet::Mpack m); 
+    void deliver(MNet::Mpack m);
 private:
     NetworkManager() = default;
     ~NetworkManager() = default;
-    boost::asio::io_service io_service_;
     std::shared_ptr<MNet::TCPServer> tcp_server_ptr_;
     std::shared_ptr<MNet::UDPServer> udp_server_ptr_;
 };

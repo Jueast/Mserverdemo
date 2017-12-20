@@ -20,20 +20,19 @@ message Files
 message States {
     message Attribute{
         string name = 1;
-        int32 quantity = 2;
+        int32 value = 2;
     }
-	message PlayerTransaction {
-		uint32 uid = 1;
-		map<uint32, Attribute> PlayerTransaction = 2;
-	}
-	repeated PlayerTransaction player_attrs = 1;
+    message PlayerTransaction {
+	map<uint32, Attribute> attrs = 1;
+    }
+    map<uint32, PlayerTransaction> player_attrs = 1;
     map<uint32, Attribute> world_attrs = 2;
 
 }
 message Command {
-	string action;
-	uint32 object;
-	uint32 value;
+    string action = 1;
+    uint32 object = 2;
+    uint32 value = 3;
 }
 
 message Mpack 

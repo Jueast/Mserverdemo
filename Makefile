@@ -11,7 +11,7 @@ SCRIPTS_DIR=scripts
 PROTO_DIR=proto
 PROTO_NAME=mpack
 TEMP_DIR=prototmp
-OBJS=mpack_message.o ${PROTO_NAME}.pb.o logging.o pubixml.o
+COMMON_OBJS=mpack_message.o ${PROTO_NAME}.pb.o logging.o pubixml.o
 DEPS=${INC_DIR}/mpack_message.hpp  
 
 all: ${BIN_DIR} protobuf gameserver dbgate 
@@ -29,9 +29,9 @@ pubixml.o: ./pugixml/src/pugixml.cpp
 	$(CC) -o $@ -c $< $(CFLAGS)
 %.o: ${SRC_DIR}/%.cpp ${DEPS}
 	$(CC) -o $@ -c $< $(CFLAGS)
-gameserver: gameserver.o mserver_net.o mserver_net_connection.o ${OBJS}
+gameserver: gameserver.o mserver_net.o mserver_net_connection.o mserver_state.o ${COMMON_OBJS}
 	$(CC) -o ${BIN_DIR}/$@ $^ $(CFLAGS)
-dbgate: mserver_dbgate.o ${OBJS} 
+dbgate: mserver_dbgate.o ${COMMON_OBJS} 
 	$(CC) -o ${BIN_DIR}/$@ $^ $(CFLAGS)
 
 protobuf: ${PROTO_DIR}/${PROTO_NAME}.proto

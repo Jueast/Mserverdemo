@@ -1,9 +1,8 @@
-#include "mserver_net.hpp"
+#include "common.hpp"
 #include "mpack_message.hpp"
+#include "mserver_net.hpp"
 #include "mserver_state.hpp"
-#include <memory>
 #include "logging.hpp"
-#include <boost/asio/spawn.hpp>
 #include "xml.hpp"
 namespace MNet 
 {
@@ -160,12 +159,12 @@ NetworkManager& NetworkManager::getNetMgr()
 void NetworkManager::sync(MNet::Mpack m) 
 {
 	INFO("Sync gameserver data to dbgate..");
-	boost::asio::spawn(io_service_,
+	boost::asio::spawn(get_io_service(),
 		[this, m](boost::asio::yield_context yield)
 		{
 			char data[4096];
 			m.SerializeToArray(data, 4096);
-			udp::socket sock(io_service_);
+			udp::socket sock(get_io_service());
 			sock.open(udp::v4());
 			sock.async_send_to(
 				boost::asio::buffer(data),
@@ -183,11 +182,11 @@ void NetworkManager::sync(MNet::Mpack m)
 void NetworkManager::login(MNet::Mpack m) 
 {
     INFO("Get login request from session %u", m.session_id());
-    boost::asio::spawn(io_service_,
+    boost::asio::spawn(get_io_service(),
         [this, m](boost::asio::yield_context yield){
             char data[4096];
             m.SerializeToArray(data, 4096);
-            udp::socket sock(io_service_);
+            udp::socket sock(get_io_service());
             sock.open(udp::v4());
             sock.async_send_to(
                     boost::asio::buffer(data),
@@ -204,7 +203,10 @@ void NetworkManager::login(MNet::Mpack m)
             }); 
             
 }
-
+void NetworkManager::deliver(MNet::Mpack m)
+{
+    tcp_server_ptr_->deliver(std::move(m));
+}
 void NetworkManager::init(const char* filename)
 {
     pugi::xml_document doc;
@@ -229,7 +231,7 @@ void NetworkManager::init(const char* filename)
     std::string db_port(dbgate_conf.child("port").child_value());
     udp::endpoint db_ep(boost::asio::ip::address_v4::from_string(db_ip.c_str()), atoi(db_port.c_str()));
 
-    udp_server_ptr_ = std::make_shared<MNet::UDPServer>(io_service_, u_ep, db_ep);
-    tcp_server_ptr_ = std::make_shared<MNet::TCPServer>(io_service_, t_ep, max_num);
+    udp_server_ptr_ = std::make_shared<MNet::UDPServer>(get_io_service(), u_ep, db_ep);
+    tcp_server_ptr_ = std::make_shared<MNet::TCPServer>(get_io_service(), t_ep, max_num);
     INFO("NetworkManager was initialized now.");
 }
