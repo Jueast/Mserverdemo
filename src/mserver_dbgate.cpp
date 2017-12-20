@@ -124,8 +124,9 @@ void MDBManager::init(const char* filename)
 
 void MDBManager::processRequest(MNet::Mpack m, boost::asio::ip::udp::endpoint ep) 
 {
-    switch(m.type()){
-        case(MNet::Mpack::LOGIN): 
+    DEBUGIF(m.type() != MNet::Mpack::CONTROL, "Wrong type udp request arrived.(not control");
+    switch(m.control()){
+        case(MNet::Mpack::AUTH): 
         {
             int uid = m.login().uid();
             std::string username = m.login().username();
@@ -135,6 +136,14 @@ void MDBManager::processRequest(MNet::Mpack m, boost::asio::ip::udp::endpoint ep
                         do_login(uid, username, salt, ep);
                     });
             break;
+        }
+        case(MNet::Mpack::SYNC):
+        {
+            io_service_.post(
+                    [this, m]()
+                    {   
+                        do_sync(m);
+                    });
         }
         default:
             break;
@@ -157,7 +166,10 @@ void MDBManager::do_login(uint32_t uid, std::string username, std::string salt, 
     MNet::Mpack m;
     DEBUGIF(!flag, "Login failed!");
     m.set_type(MNet::Mpack::CONTROL);
-    m.set_error(!flag);
+    if(!flag)
+        m.set_control(MNet::Mpack::ACK_NO);
+    else
+        m.set_control(MNet::Mpack::ACK_YES);
     server_ptr_->deliver(ep, m.SerializeAsString());
 }
 

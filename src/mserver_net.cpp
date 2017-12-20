@@ -162,8 +162,8 @@ void NetworkManager::sync(MNet::Mpack m)
 	boost::asio::spawn(get_io_service(),
 		[this, m](boost::asio::yield_context yield)
 		{
-			char data[4096];
-			m.SerializeToArray(data, 4096);
+			char data[40960];
+			m.SerializeToArray(data, 40960);
 			udp::socket sock(get_io_service());
 			sock.open(udp::v4());
 			sock.async_send_to(
@@ -182,10 +182,12 @@ void NetworkManager::sync(MNet::Mpack m)
 void NetworkManager::login(MNet::Mpack m) 
 {
     INFO("Get login request from session %u", m.session_id());
+    m.set_type(MNet::Mpack::CONTROL);
+    m.set_control(MNet::Mpack::AUTH);
     boost::asio::spawn(get_io_service(),
         [this, m](boost::asio::yield_context yield){
-            char data[4096];
-            m.SerializeToArray(data, 4096);
+            char data[40960];
+            m.SerializeToArray(data, 40960);
             udp::socket sock(get_io_service());
             sock.open(udp::v4());
             sock.async_send_to(
@@ -197,10 +199,28 @@ void NetworkManager::login(MNet::Mpack m)
             DEBUG("Get udp control message from %s", from.address().to_string().c_str());
             MNet::Mpack r;
             r.ParseFromArray(data, l);
+            bool ack = r.control() == MNet::Mpack::ACK_YES;
             r.set_session_id(m.session_id());
-			r.set_type(MNet::Mpack::INFO);
-            tcp_server_ptr_->deliver(std::move(r));   
-            }); 
+	    r.set_type(MNet::Mpack::INFO);
+            r.set_error(!ack);
+            r.clear_control();
+            tcp_server_ptr_->deliver(std::move(r)); 
+            if(!ack)
+                return;
+            MNet::Mpack mount_request;
+            mount_request.set_type(MNet::Mpack::CONTROL);
+            mount_request.set_control(MNet::Mpack::MOUNT_USER);
+            mount_request.mutable_login()->set_uid(m.login().uid());
+            mount_request.SerializeToArray(data, 40960);
+            sock.async_send_to(
+                boost::asio::buffer(data),
+                udp_server_ptr_->get_dbgate_address(),
+                yield);
+            l = sock.async_receive_from(boost::asio::buffer(data), from, yield);
+            r.Clear();
+            r.ParseFromArray(data, l);    
+            StateManager::getStateMgr().addTask(std::move(r)); 
+        }); 
             
 }
 void NetworkManager::deliver(MNet::Mpack m)

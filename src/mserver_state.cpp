@@ -20,6 +20,7 @@ StateManager::StateManager()
 
 void StateManager::do_sync() 
 {
+    send_message_.set_type(MNet::Mpack::STATE_MODIFY);
     NetworkManager::getNetMgr().sync(send_message_);
 }
 void StateManager::do_sync_complete(MNet::Mpack m)

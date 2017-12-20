@@ -47,7 +47,16 @@ message Mpack
 
         STATE_QUERY = 5;
         STATE_MODIFY = 6;
-		COMMAND = 7;
+	COMMAND = 7;
+    }
+    enum ControlType
+    {
+        ACK_YES = 0;
+        ACK_NO = 1;
+        MOUNT_USER = 2;
+        MOUNT_WORLD = 3;
+        SYNC = 4;
+        AUTH = 5;
     }
     // Client/Server versions which should match. 
     uint32 version = 1;
@@ -61,7 +70,8 @@ message Mpack
     Login login = 7; 
     Files files = 8;
     States states = 9;
-	Command command = 10;
+    ControlType control = 10;
+    Command command = 11;
 }
 
 
