@@ -55,8 +55,9 @@ message Mpack
         ACK_NO = 1;
         MOUNT_USER = 2;
         MOUNT_WORLD = 3;
-        SYNC = 4;
-        AUTH = 5;
+        CREATE_USER = 4;
+        SYNC = 5;
+        AUTH = 6;
     }
     // Client/Server versions which should match. 
     uint32 version = 1;

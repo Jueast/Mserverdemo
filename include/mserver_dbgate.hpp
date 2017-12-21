@@ -75,8 +75,9 @@ private:
     MDBManager() = default;
     ~MDBManager() = default;
     void do_login(uint32_t uid, std::string username, std::string salt, boost::asio::ip::udp::endpoint ep);
-    void do_mount_world(); 
-    void do_mount(uint32_t uid);
+    void do_mount_world();
+    void do_create_user(MNet::Mpack m);
+    void do_mount_user(uint32_t uid);
     void do_query(MNet::Mpack m);
     void do_sync(MNet::Mpack m);
     MDB::MDBConnectionPool pool_;

@@ -128,13 +128,35 @@ void MDBManager::processRequest(MNet::Mpack m, boost::asio::ip::udp::endpoint ep
     switch(m.control()){
         case(MNet::Mpack::AUTH): 
         {
-            int uid = m.login().uid();
+            uint32_t uid = m.login().uid();
             std::string username = m.login().username();
             std::string salt = m.login().salt();
             io_service_.post([uid, username, salt, ep, this]()
                     {
                         do_login(uid, username, salt, ep);
                     });
+            break;
+        }
+        case(MNet::Mpack::CREATE_USER):
+        {
+            io_service_.post([this, m](){
+                    do_create_user(m);});
+            break;
+
+        }
+        case(MNet::Mpack::MOUNT_WORLD):
+        {
+            io_service_.post([this](){
+                    do_mount_world();});
+            break;
+        }
+        case(MNet::Mpack::MOUNT_USER):
+        {
+            uint32_t uid = m.login().uid();
+            io_service_.post([this, uid]()
+            {
+               do_mount_user(uid); 
+            });
             break;
         }
         case(MNet::Mpack::SYNC):
