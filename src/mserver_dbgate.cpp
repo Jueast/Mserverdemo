@@ -114,6 +114,27 @@ void MDBManager::init(const char* filename)
     unsigned int max_idle_time = atoi(db_conf.child("soft_max_conns").child_value());
     pool_.init(db, server, user, password, soft_max_conns, max_idle_time);
 
+    pugi::xml_node game_conf = doc.child("configuration").child("game_file");
+    std::string player_file(game_conf.child("player").child_value());
+    std::string world_file(game_conf.child("world").child_value());
+
+    pugi::xml_document player_doc, world_doc;
+    pugi::xml_parse_result player_result = player_doc.load_file(player_file.c_str());
+    INFO("MDBManager loaded %s: %s", filename, player_result.description());
+    pugi::xml_parse_result world_result = world_doc.load_file(world_file.c_str());
+    INFO("MDBManager loaded %s: %s", filename, world_result.description());
+    uint32_t index = 10000;
+    for(pugi::xml_node cat : player_doc.child("player").children())
+    {
+        for(pugi::xml_node col : cat.children())
+        {
+
+        }
+
+    }
+
+
+
     using boost::asio::ip::udp;
     pugi::xml_node udp_conf = doc.child("configuration").child("udp");
     std::string ip(udp_conf.child("ip").child_value());
