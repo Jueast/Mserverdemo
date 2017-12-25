@@ -31,7 +31,7 @@ pubixml.o: ./pugixml/src/pugixml.cpp
 	$(CC) -o $@ -c $< $(CFLAGS)
 gameserver: gameserver.o mserver_net.o mserver_net_connection.o mserver_state.o ${COMMON_OBJS}
 	$(CC) -o ${BIN_DIR}/$@ $^ $(CFLAGS)
-dbgate: mserver_dbgate.o ${COMMON_OBJS} 
+dbgate: mserver_mdb.o mserver_dbgate.o ${COMMON_OBJS} 
 	$(CC) -o ${BIN_DIR}/$@ $^ $(CFLAGS)
 
 protobuf: ${PROTO_DIR}/${PROTO_NAME}.proto

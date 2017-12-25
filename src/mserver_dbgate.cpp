@@ -4,96 +4,6 @@
 #include "logging.hpp"
 #include "unistd.h"
 #include "xml.hpp"
-namespace MDB
-{
-
-
-MysqlConnPtr MDBConnectionPool::grab(int)
-{
-    // WARNING!! No explicit exclusive accesss control here, 
-	// thus conn_in_use_ could be any positive integer value.
-	while(conns_in_use_ > soft_max_conns_){
-		sleep(1);
-	}
-	++conns_in_use_;
-	auto p = grab();
-	return MysqlConnPtr(p, [this](mysqlpp::Connection* p){ this->release(p); });
-}
-
-void MDBConnectionPool::release(const mysqlpp::Connection* pc)
-{
-	mysqlpp::ConnectionPool::release(pc);
-	--conns_in_use_;
-}
-
-inline mysqlpp::Connection* MDBConnectionPool::create()
-{
-        return new mysqlpp::Connection(
-		db_.c_str(),
-		server_.c_str(),
-		user_.c_str(),
-		password_.c_str());
-}	
-
-inline void MDBConnectionPool::destroy(mysqlpp::Connection* pc)
-{
-	delete pc;
-}
-using boost::asio::ip::udp;
-
-void MDBUDPServer::do_receive(){
-    socket_.async_receive_from(
-            boost::asio::buffer(read_data_), sender_endpoint_,
-            [this](boost::system::error_code ec, std::size_t bytes_recvd){
-                if(!ec && bytes_recvd > 0)
-                {
-                    INFO("Receive message from %s", sender_endpoint_.address().to_string().c_str());
-					MNet::Mpack m;
-                    m.ParsePartialFromArray(read_data_, bytes_recvd); 
-                    MDBManager::getMDBMgr().processRequest(std::move(m), sender_endpoint_);
-                    do_receive();
-                }
-                else
-                {
-                   if(!ec)
-                   {
-                        ERROR("boost asio error: %s", ec.message().c_str());
-                   }
-                   else
-                   {
-                        WARN("0 length message from %s", sender_endpoint_.address().to_string().c_str());
-                   }
-                }
-
-            });
-}
-
-void MDBUDPServer::deliver(udp::endpoint ep, std::string s)
-{
-    bool write_in_process = !write_data_.empty();
-    write_data_.emplace_back(ep, s);
-    if(!write_in_process)
-    {
-        do_write();
-    }
-    
-}
-
-void MDBUDPServer::do_write()
-{
-    socket_.async_send_to(
-            boost::asio::buffer(write_data_.front().second),
-            write_data_.front().first,
-            [this](boost::system::error_code, std::size_t){
-				INFO("Send a message to %s", write_data_.front().first.address().to_string().c_str());
-                write_data_.pop_front();
-                if(!write_data_.empty()){
-                    do_write();
-                }
-            });
-}
-
-}
 MDBManager& MDBManager::getMDBMgr()
 {
     static MDBManager mgr;
@@ -120,9 +30,9 @@ void MDBManager::init(const char* filename)
 
     pugi::xml_document player_doc, world_doc;
     pugi::xml_parse_result player_result = player_doc.load_file(player_file.c_str());
-    INFO("MDBManager loaded %s: %s", filename, player_result.description());
+    INFO("MDBManager loaded %s: %s", player_file.c_str(), player_result.description());
     pugi::xml_parse_result world_result = world_doc.load_file(world_file.c_str());
-    INFO("MDBManager loaded %s: %s", filename, world_result.description());
+    INFO("MDBManager loaded %s: %s", world_file.c_str(), world_result.description());
     uint32_t index = 10000;
     for(pugi::xml_node cat : player_doc.child("player").children())
     {
@@ -130,6 +40,7 @@ void MDBManager::init(const char* filename)
         {
             index += 1;
             player_data_dic_[index] = col.child_value();
+            rev_player_data_dic_[col.child_value()] = index;
         }
         index += 10000;
     }
@@ -140,6 +51,7 @@ void MDBManager::init(const char* filename)
         {
             index += 1;
             world_data_dic_[index] = col.child_value();
+            rev_world_data_dic_[col.child_value()] = index;
         }
         index += 10000;
 
@@ -170,32 +82,32 @@ void MDBManager::processRequest(MNet::Mpack m, boost::asio::ip::udp::endpoint ep
         }
         case(MNet::Mpack::CREATE_USER):
         {
-            io_service_.post([this, m](){
-                    do_create_user(m);});
+            io_service_.post([this, m, ep](){
+                    do_create_user(m, ep);});
             break;
 
         }
         case(MNet::Mpack::MOUNT_WORLD):
         {
-            io_service_.post([this](){
-                    do_mount_world();});
+            io_service_.post([this, ep](){
+                    do_mount_world(ep);});
             break;
         }
         case(MNet::Mpack::MOUNT_USER):
         {
             uint32_t uid = m.login().uid();
-            io_service_.post([this, uid]()
+            io_service_.post([this, uid, ep]()
             {
-               do_mount_user(uid); 
+               do_mount_user(uid, ep); 
             });
             break;
         }
         case(MNet::Mpack::SYNC):
         {
             io_service_.post(
-                    [this, m]()
+                    [this, m, ep]()
                     {   
-                        do_sync(m);
+                        do_sync(m, ep);
                     });
         }
         default:
@@ -224,6 +136,43 @@ void MDBManager::do_login(uint32_t uid, std::string username, std::string salt, 
     else
         m.set_control(MNet::Mpack::ACK_YES);
     server_ptr_->deliver(ep, m.SerializeAsString());
+}
+using boost::asio::ip::udp;
+void MDBManager::do_mount_world(udp::endpoint ep)
+{
+    INFO("Get world data from database...");
+    auto conn = pool_.grab(0);
+    // get latest world record
+    mysqlpp::Query query = conn->query("SELECT  FROM world where world.ts = ( select max(ts) from world);");
+    query.parse();
+    mysqlpp::StoreQueryResult res = query.store();
+    MNet::Mpack m;
+    m.set_type(MNet::Mpack::CONTROL);
+    m.set_control(MNet::Mpack::MOUNT_WORLD);
+    auto w = m.mutable_states()->mutable_world_attrs();
+    for(size_t i = 0; i < res.field_names()->size(); i++) {
+        std::string s = res.field_name(i);
+        if(s == "ts")
+            continue;
+        (*w)[rev_player_data_dic_[s]] = res[0].[s.c_str()];
+    }
+
+}
+
+void MDBManager::do_create_user(MNet::Mpack m, udp::endpoint ep)
+{
+}
+
+void MDBManager::do_mount_user(uint32_t uid, udp::endpoint ep)
+{
+}
+
+void MDBManager::do_query(MNet::Mpack m, udp::endpoint ep)
+{
+}
+
+void MDBManager::do_sync(MNet::Mpack m, udp::endpoint ep)
+{
 }
 
 int main(int argc, const char* argv[]){
