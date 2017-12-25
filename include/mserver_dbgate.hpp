@@ -83,8 +83,8 @@ private:
     MDB::MDBConnectionPool pool_;
     std::shared_ptr<MDB::MDBUDPServer> server_ptr_;
     boost::asio::io_service io_service_;
-    std::unordered_map<uint32_t, std::string> player_data_dic;
-    std::unordered_map<uint32_t, std::string> world_data_dic;
+    std::unordered_map<uint32_t, std::string> player_data_dic_;
+    std::unordered_map<uint32_t, std::string> world_data_dic_;
     
 };
 #endif

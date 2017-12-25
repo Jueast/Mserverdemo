@@ -128,13 +128,23 @@ void MDBManager::init(const char* filename)
     {
         for(pugi::xml_node col : cat.children())
         {
-
+            index += 1;
+            player_data_dic_[index] = col.child_value();
         }
+        index += 10000;
+    }
+    index = 10000;
+    for(pugi::xml_node cat : world_doc.child("world").children())
+    {
+        for(pugi::xml_node col : cat.children())
+        {
+            index += 1;
+            world_data_dic_[index] = col.child_value();
+        }
+        index += 10000;
 
     }
-
-
-
+    INFO("Player dic size: %d, World dic size: %d", player_data_dic_.size(), world_data_dic_.size());
     using boost::asio::ip::udp;
     pugi::xml_node udp_conf = doc.child("configuration").child("udp");
     std::string ip(udp_conf.child("ip").child_value());
