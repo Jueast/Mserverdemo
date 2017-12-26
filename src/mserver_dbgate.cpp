@@ -7,11 +7,6 @@
 #include "unistd.h"
 #include "xml.hpp"
 
-
-
-
-
-
 static const uint32_t index_limit = 10000;
 MDBManager& MDBManager::getMDBMgr()
 {
@@ -362,12 +357,24 @@ void MDBManager::do_modify(MNet::Mpack m, udp::endpoint ep)
     }
 
     {
-        
-
-
+        for(auto it = states->player_attrs().begin(); it != states->player_attrs().end();it++)
+        {
+            uint32_t uid = it->first;
+            mysqlpp::Query query = conn->query();
+            query << "UPDATE player SET ";
+            query << player_data_dic_[it->second.attrs().begin()->first] << "=" << it->second.attrs().begin()->second.value();
+            for(auto a = ++it->second.attrs().begin(); a != it->second.attrs().end(); a++)
+            {
+                query << ", " << player_data_dic_[a->first] << "=" << a->second.value();  
+            }
+            query << " where uid=" << uid;
+            query.execute();
+        }
     }
-
-
+    MNet::Mpack a;
+    a.set_type(MNet::Mpack::CONTROL);
+    a.set_control(MNet::Mpack::ACK_YES);
+    server_ptr_->deliver(ep, a.SerializeAsString());
     
 }
 
