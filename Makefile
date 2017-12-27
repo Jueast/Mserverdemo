@@ -11,7 +11,7 @@ SCRIPTS_DIR=scripts
 PROTO_DIR=proto
 PROTO_NAME=mpack
 TEMP_DIR=prototmp
-COMMON_OBJS=mpack_message.o ${PROTO_NAME}.pb.o logging.o pubixml.o
+COMMON_OBJS=common.o mpack_message.o ${PROTO_NAME}.pb.o logging.o pubixml.o
 DEPS=${INC_DIR}/mpack_message.hpp  
 
 all: ${BIN_DIR} protobuf gameserver dbgate 

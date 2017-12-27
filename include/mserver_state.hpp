@@ -6,8 +6,8 @@
 #include "common.hpp"
 namespace MState {
 
-using MNet::States_Attribute;
-typedef std::unordered_map<uint32_t, States_Attribute> Transaction;
+typedef MNet::Player PlayerProto;
+typedef MNet::World WorldProto;
 typedef std::deque<MNet::Mpack> TaskQueue;
 
 
@@ -29,8 +29,8 @@ private:
     void do_process();
     boost::asio::deadline_timer timer_;
     boost::asio::strand strand_;
-    std::unordered_map<uint32_t, MState::Transaction> player_state_;
-    MState::Transaction world_state_;
+    std::unordered_map<uint32_t, MState::PlayerProto> player_state_;
+    MState::WorldProto world_state_;
     MState::TaskQueue queue_;
     MNet::Mpack sync_message_;
     MNet::Mpack send_message_;

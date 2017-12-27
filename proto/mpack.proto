@@ -17,18 +17,18 @@ message Files
     }
     repeated File files = 1;
 }
-message States {
-    message Attribute{
-        string name = 1;
-        int32 value = 2;
-    }
-    message PlayerTransaction {
-	map<uint32, Attribute> attrs = 1;
-    }
-    map<uint32, PlayerTransaction> player_attrs = 1;
-    map<uint32, Attribute> world_attrs = 2;
-
+message Attribute {
+    string name = 1;
+    uint32 value = 2;
 }
+message World {
+    map<uint32, Attribute> attrs = 1;
+}
+
+message Player {
+    map<uint32, Attribute> attrs = 1;
+}
+    
 message Command {
     string action = 1;
     uint32 object = 2;
@@ -70,9 +70,10 @@ message Mpack
     int64 time = 6;
     Login login = 7; 
     Files files = 8;
-    States states = 9;
-    ControlType control = 10;
-    Command command = 11;
+    ControlType control = 9;
+    Command command = 10;
+    map<uint32, Player> players = 11;
+    World world = 12;
 }
 
 

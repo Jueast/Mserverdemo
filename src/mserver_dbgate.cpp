@@ -3,6 +3,7 @@
 #include "mpack_message.hpp"
 #include "mserver_dbgate.hpp"
 #include "mserver_dbgate_sqlss.h"
+#include "common.hpp"
 #include "logging.hpp"
 #include "unistd.h"
 #include "xml.hpp"
@@ -40,7 +41,6 @@ void MDBManager::init(const char* filename)
     uint32_t index = index_limit;
     for(pugi::xml_node cat : player_doc.child("player").children())
     {
-        player_table_dic_[index/index_limit] = cat.name(); 
         for(pugi::xml_node col : cat.children())
         {
             index += 1;
@@ -67,19 +67,19 @@ void MDBManager::init(const char* filename)
     std::string ip(udp_conf.child("ip").child_value());
     std::string port(udp_conf.child("port").child_value());
     udp::endpoint ep(boost::asio::ip::address_v4::from_string(ip.c_str()), atoi(port.c_str())); 
-	server_ptr_ = std::make_shared<MDB::MDBUDPServer>(io_service_, ep); 
+    server_ptr_ = std::make_shared<MDB::MDBUDPServer>(get_io_service(), ep); 
 }
 
 void MDBManager::processRequest(MNet::Mpack m, boost::asio::ip::udp::endpoint ep) 
 {
-    DEBUGIF(m.type() != MNet::Mpack::CONTROL, "Wrong type udp request arrived.(not control");
+    DEBUGIF(m.type() != MNet::Mpack::CONTROL, "Wrong type udp request arrived.(not control)");
     switch(m.control()){
         case(MNet::Mpack::AUTH): 
         {
             uint32_t uid = m.login().uid();
             std::string username = m.login().username();
             std::string salt = m.login().salt();
-            io_service_.post([uid, username, salt, ep, this]()
+            get_io_service().post([uid, username, salt, ep, this]()
                     {
                         do_login(uid, username, salt, ep);
                     });
@@ -87,21 +87,21 @@ void MDBManager::processRequest(MNet::Mpack m, boost::asio::ip::udp::endpoint ep
         }
         case(MNet::Mpack::CREATE_USER):
         {
-            io_service_.post([this, m, ep](){
+            get_io_service().post([this, m, ep](){
                     do_create_user(m, ep);});
             break;
 
         }
         case(MNet::Mpack::MOUNT_WORLD):
         {
-            io_service_.post([this, ep](){
+            get_io_service().post([this, ep](){
                     do_mount_world(ep);});
             break;
         }
         case(MNet::Mpack::MOUNT_USER):
         {
             uint32_t uid = m.login().uid();
-            io_service_.post([this, uid, ep]()
+            get_io_service().post([this, uid, ep]()
             {
                do_mount_user(uid, ep); 
             });
@@ -109,7 +109,7 @@ void MDBManager::processRequest(MNet::Mpack m, boost::asio::ip::udp::endpoint ep
         }
         case(MNet::Mpack::SYNC):
         {
-            io_service_.post(
+            get_io_service().post(
                     [this, m, ep]()
                     {   
                         do_modify(m, ep);
@@ -120,15 +120,6 @@ void MDBManager::processRequest(MNet::Mpack m, boost::asio::ip::udp::endpoint ep
     }
 }
 
-inline std::string MDBManager::get_player_table_name(uint32_t x)
-{ 
-    return player_table_dic_[x/index_limit];
-}
-
-inline std::string MDBManager::get_player_table_name(std::string s)
-{
-    return get_player_table_name(rev_player_data_dic_[s]);
-}
 
 void MDBManager::do_login(uint32_t uid, std::string username, std::string salt, boost::asio::ip::udp::endpoint ep)
 {
@@ -159,9 +150,20 @@ void MDBManager::do_mount_world(udp::endpoint ep)
     MNet::Mpack m;
     m.set_type(MNet::Mpack::CONTROL);
     m.set_control(MNet::Mpack::MOUNT_WORLD);
-    auto states = m.mutable_states();
     auto conn = pool_.grab(0);
-    world_query_helper(conn, std::set<uint32_t>(), states);
+    mysqlpp::Query query = conn->query("select * from world where ts=(select max(ts) from world");
+    mysqlpp::StoreQueryResult res = query.store();
+    if(res.empty()){
+        m.mutable_world(); // set empty world;
+        INFO("Get empty world data."); 
+    }
+    else{
+        world world_now = res[0];
+        INFO("Get world data at %s.", world_now.ts.str().c_str()); 
+        MNet::World w;
+        w.ParseFromArray(world_now.dat.c_str(), world_now.dat.length());
+        m.set_allocated_world(&w);
+    }
     server_ptr_->deliver(ep, m.SerializeAsString());
 }
 
@@ -178,13 +180,11 @@ void MDBManager::do_create_user(MNet::Mpack m, udp::endpoint ep)
             mysqlpp::Transaction::serializable,
             mysqlpp::Transaction::session);
         users_salts salt_row(uid, username, salt);
-        player_characteristic char_row(uid,0,0,0,0,0,0,0,0,0,0);
-        player_skill skill_row(uid,0,0,0,0,0,0,0);
-        player_state state_row(uid,0,0,0,0);
+        MNet::Player p;
+        player char_row(uid, mysqlpp::DateTime::now(), mysqlpp::String(p.SerializeAsString()));
         query.insert(salt_row);
+        query.execute();
         query.insert(char_row);
-        query.insert(skill_row);
-        query.insert(state_row);
         query.execute();
         trans.commit();
     }
@@ -194,128 +194,29 @@ void MDBManager::do_create_user(MNet::Mpack m, udp::endpoint ep)
     server_ptr_->deliver(ep, a.SerializeAsString());
 
 }
-void MDBManager::player_query_helper(MDB::MysqlConnPtr conn,
-                                      std::string table_string,
-                                      std::set<uint32_t> uids,
-                                      MNet::States* states)
-{ 
-    
-    if(uids.empty())
-        return;
-    std::string query_string = "select * from player_" + table_string;
-    std::string uid_string = "";
-    for(auto uid : uids)
-    {
-        uid_string += "uid = " + std::to_string(uid) + " OR "; 
-    }
-    uid_string.erase(uid_string.size()-4);
-    query_string += "where " + uid_string;
-    mysqlpp::Query query = conn->query(query_string.c_str());
-    query.parse();
-    mysqlpp::StoreQueryResult res = query.store();
-    for(auto row : res){
-        MNet::States_PlayerTransaction pt;
-        uint32_t uid = row["uid"];
-        for(auto s : *res.field_names())
-        {
-            if(s == "uid")
-                continue;
-            MNet::States_Attribute sa;
-            sa.set_name(s);
-            sa.set_value(row[s.c_str()]);
-            (*pt.mutable_attrs())[rev_player_data_dic_[s]] = std::move(sa);
-        }
-        (*(states->mutable_player_attrs()))[uid] = std::move(pt);
-    }
-        
-}
 
-void MDBManager::world_query_helper(MDB::MysqlConnPtr conn, std::set<uint32_t> ids, MNet::States* states)
-
-{ 
-
-    std::string col_string = "";
-    if(ids.empty())
-    {
-        col_string = "*";
-    }
-    else
-    {
-        for(auto id : ids)
-        {
-            std::string field = world_data_dic_[id];
-            col_string += field + ",";     
-        }
-    }
-    if(col_string == ""){
-        return;
-    }
-    else if(col_string != "*"){
-        col_string.pop_back();
-    }
-    std::string query_string = "select " + col_string + " from world where ts = (select max(ts) from world)"; 
-    mysqlpp::Query query = conn->query(query_string.c_str());
-    query.parse();
-    mysqlpp::StoreQueryResult res = query.store();
-    auto w = states->mutable_world_attrs();
-    for(size_t i = 0; i < res.field_names()->size(); i++) {
-        std::string s = res.field_name(i);
-        if(s == "ts")
-            continue;
-        MNet::States_Attribute sa;
-        sa.set_name(s);
-        sa.set_value(res[0][s.c_str()]);
-        (*w)[rev_player_data_dic_[s]] = std::move(sa); 
-    }
-
-}
 void MDBManager::do_mount_user(uint32_t uid, udp::endpoint ep)
 {
-    INFO("Mount user %u now...");
+    INFO("Mount user %u now...", uid);
     MNet::Mpack m;
-    MNet::States_PlayerTransaction pt;
     {   
         auto conn = pool_.grab(0);
-        mysqlpp::Query query = conn->query("select * from player_characteristic where uid = %0:uid");
+        mysqlpp::Query query = conn->query("select * from player where uid = %0:uid");
         query.parse();
         mysqlpp::StoreQueryResult res = query.store(uid);
-        for(auto s : *res.field_names())
+        if(res.empty())
+            ERROR("No user %u!", uid);
+        else
         {
-            if(s == "uid")
-                continue;
-            MNet::States_Attribute sa;
-            sa.set_name(s);
-            sa.set_value(res[0][s.c_str()]);
-            (*pt.mutable_attrs())[rev_player_data_dic_[s]] = std::move(sa);
-        }
-        query = conn->query("select * from player_skill where uid = %0:uid");
-        query.parse();
-        res = query.store(uid);
-        for(auto s : *res.field_names())
-        {
-           if(s == "uid")
-                continue;
-            MNet::States_Attribute sa;
-            sa.set_name(s);
-            sa.set_value(res[0][s.c_str()]);
-            (*pt.mutable_attrs())[rev_player_data_dic_[s]] = std::move(sa);
-        }
-        query = conn->query("select * from player_state where uid = %0:uid");
-        query.parse();
-        res = query.store(uid);
-        for(auto s : *res.field_names())
-        {
-           if(s == "uid")
-                continue;
-            MNet::States_Attribute sa;
-            sa.set_name(s);
-            sa.set_value(res[0][s.c_str()]);
-            (*pt.mutable_attrs())[rev_player_data_dic_[s]] = std::move(sa);
+            player p = res[0];
+            INFO("Get player %u data at %s", p.uid, p.ts.str().c_str());
+            MNet::Player mp;
+            mp.ParseFromArray(p.dat.c_str(), p.dat.length());
+            (*m.mutable_players())[uid] = mp;
         }
     }
     m.set_type(MNet::Mpack::CONTROL);
     m.set_control(MNet::Mpack::MOUNT_USER);
-    (*m.mutable_states()->mutable_player_attrs())[uid] = std::move(pt);
     server_ptr_->deliver(ep, m.SerializeAsString());
     
 }
@@ -323,52 +224,58 @@ void MDBManager::do_mount_user(uint32_t uid, udp::endpoint ep)
 // no pratical use now.
 void MDBManager::do_query(MNet::Mpack m, udp::endpoint ep)
 {
-   INFO("Processing query now...");
-   auto states = m.mutable_states();
-   auto conn = pool_.grab(0);
-   std::set<uint32_t> uids;
-   for(auto it = states->player_attrs().begin(); it != states->player_attrs().end();it++){
-        uids.emplace(it->first);
-   }
-   player_query_helper(conn, "characteristic", uids, states);
-   player_query_helper(conn, "skill", uids, states);
-   player_query_helper(conn, "state", uids, states);
-   std::set<uint32_t> ids;
-   for(auto it = states->world_attrs().begin(); it != states->world_attrs().end();it++)   
-   {
-       ids.emplace(it->first);
-   }
-   world_query_helper(conn, ids, states);
-   server_ptr_->deliver(ep, m.SerializeAsString());
+
 }
 void MDBManager::do_modify(MNet::Mpack m, udp::endpoint ep)
 {
     INFO("Modifying data now...");
     auto conn = pool_.grab(0);
-    auto states = m.mutable_states();
     {
         mysqlpp::Query query = conn->query("select * from world where ts = (select max(ts) from world)");
         mysqlpp::StoreQueryResult res = query.store();
-        world world_now= res[0];
-        world_now.ts = mysqlpp::sql_timestamp();
-        if(states->world_attrs().find(rev_world_data_dic_["num_of_players"]) != states->world_attrs().end())
-            world_now.num_of_players = states->world_attrs().at(rev_world_data_dic_["num_of_players"]).value();
-        query.insert(world_now);   
+        if(res.empty()){
+            world world_now(mysqlpp::DateTime::now(), mysqlpp::String(m.world().SerializeAsString()));
+            query = conn->query();
+            query.insert(world_now);
+        }
+        else
+        {   
+            world world_now = res[0];
+            MNet::World w;
+            w.ParseFromArray(world_now.dat.c_str(), world_now.dat.length());
+            updateWorld(w, m.world());       
+            world_now.dat = mysqlpp::String(w.SerializeAsString());
+            world_now.ts = mysqlpp::DateTime::now();
+            query = conn->query();
+            query.insert(world_now);
+        }
+        query.execute();
     }
 
     {
-        for(auto it = states->player_attrs().begin(); it != states->player_attrs().end();it++)
+        for(auto it = m.players().begin(); it != m.players().end();it++)
         {
             uint32_t uid = it->first;
-            mysqlpp::Query query = conn->query();
-            query << "UPDATE player SET ";
-            query << player_data_dic_[it->second.attrs().begin()->first] << "=" << it->second.attrs().begin()->second.value();
-            for(auto a = ++it->second.attrs().begin(); a != it->second.attrs().end(); a++)
-            {
-                query << ", " << player_data_dic_[a->first] << "=" << a->second.value();  
+            mysqlpp::Query query = conn->query("select * from player where uid = %0:uid");
+            query.parse();
+            mysqlpp::StoreQueryResult res = query.store(uid);
+            if(res.empty()){
+                ERROR("No user %u!", uid);
+                continue;
             }
-            query << " where uid=" << uid;
-            query.execute();
+            else
+            {
+                player p = res[0];
+                auto p_old = p;
+                MNet::Player mp;
+                mp.ParseFromArray(p_old.dat.c_str(), p_old.dat.length());
+                updatePlayer(mp, it->second);
+                p.dat = mysqlpp::String(mp.SerializeAsString());
+                p.ts = mysqlpp::DateTime::now();
+                query.update(p_old, p);
+                query.execute();
+            }
+
         }
     }
     MNet::Mpack a;
@@ -379,30 +286,30 @@ void MDBManager::do_modify(MNet::Mpack m, udp::endpoint ep)
 }
 
 int main(int argc, const char* argv[]){
-	try{
-		MDBManager& mgr = MDBManager::getMDBMgr();
-		Logging::Logger& logger = Logging::Logger::getLogger();
-		logger.setFileName("log/dbgate.log");
-		logger.setLogLevel(Logging::level::fatal);
-		if(argc > 2)
-	    {
-		    std::cerr << "Usage: dbgate [configure filename ('dbgate.conf' as default)]\n";
-			exit(1);
-		}
-		if(argc == 2)
-		{
-			mgr.init(argv[1]);
-		}
-		else
-		{
-			mgr.init("dbgate.conf");
-		}
-		mgr.get_io_service().run();
-	}
-	catch(std::exception& e)
+    try{
+	MDBManager& mgr = MDBManager::getMDBMgr();
+	Logging::Logger& logger = Logging::Logger::getLogger();
+        logger.setFileName("log/dbgate.log");
+        logger.setLogLevel(Logging::level::fatal);
+	if(argc > 2)
 	{
-		std::cerr << e.what() << std::endl;
+	    std::cerr << "Usage: dbgate [configure filename ('dbgate.conf' as default)]\n";
+	    exit(1);
 	}
-	return 0;
+	if(argc == 2)
+	{
+	    mgr.init(argv[1]);
+	}
+	else
+	{
+	    mgr.init("dbgate.conf");
+	}
+	get_io_service().run();
+    }
+    catch(std::exception& e)
+    {
+    	std::cerr << e.what() << std::endl;
+    }
+    return 0;
 }
 

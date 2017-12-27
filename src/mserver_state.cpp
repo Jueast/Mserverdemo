@@ -81,60 +81,44 @@ void StateManager::do_process()
 
 void StateManager::do_load(MNet::Mpack m)
 {
-    using MNet::Mpack;
-    using MNet::States;
-    assert(m.has_states()); 
-    MNet::States* states = m.mutable_states();
-    
-    for(auto p = states->mutable_player_attrs()->begin(); p != states->mutable_player_attrs()->end();p++) 
+    for(auto it = m.mutable_players()->begin(); it != m.mutable_players()->end(); it++)
     {
-        auto player = player_state_.at(p->first);
-        for(auto a = p->second.mutable_attrs()->begin(); a != p->second.mutable_attrs()->end(); a++)
-        {
-            a->second = player.at(a->first);
-        }
+        loadPlayer(it->second, player_state_[it->first]);
     }
-
-    for(auto a = states->mutable_world_attrs()->begin(); a != states->mutable_world_attrs()->end();a++)
-    {
-        a->second = world_state_.at(a->first);
+    if(m.has_world()){
+        loadWorld(*m.mutable_world(), world_state_);
     }
-   
     NetworkManager::getNetMgr().deliver(std::move(m));
 }
 
 void StateManager::do_modify(MNet::Mpack m)
 {
-    using MNet::Mpack;
-    using MNet::States;
-    assert(m.has_states()); 
-    // update stage and sync_message simultaneously
-    const MNet::States& states = m.states();
-    MNet::States* sync_states = sync_message_.mutable_states(); 
-    for(auto p = states.player_attrs().begin(); p != states.player_attrs().end();p++) 
+    for(auto it = m.players().begin(); it != m.players().end(); it++)
     {
-        auto player = player_state_.at(p->first);
-        bool player_in_sync = sync_states->player_attrs().find(p->first) != sync_states->player_attrs().end();
-        if(!player_in_sync){
-            (*sync_states->mutable_player_attrs())[p->first] = p->second;
-        }
-        auto sync_player = (*sync_states->mutable_player_attrs())[p->first];   
-        for(auto a = p->second.attrs().begin(); a != p->second.attrs().end(); a++)
+        updatePlayer(player_state_[it->first], it->second);
+        if(sync_message_.players().find(it->first) == sync_message_.players().end())
         {
-            player[a->first] = a->second;
-            if(player_in_sync){
-                (*sync_player.mutable_attrs())[a->first] = a->second;
-            }
+            (*sync_message_.mutable_players())[it->first] = it->second;
+        }
+        else
+        {
+            updatePlayer((*sync_message_.mutable_players())[it->first], it->second);
+        }
+    }
+    if(m.has_world()){
+        updateWorld(world_state_, m.world());
+        if(sync_message_.has_world())
+        {
+            updateWorld(*sync_message_.mutable_world(), m.world());
+        }
+        else
+        {
+            (*sync_message_.mutable_world()) = m.world(); 
         }
     }
 
-    for(auto a = states.world_attrs().begin(); a != states.world_attrs().end();a++)
-    {
-        world_state_[a->first] = a->second;
-        (*sync_states->mutable_world_attrs())[a->first] = a->second;
-    }
-    Mpack r;
-    r.set_type(Mpack::INFO);
+    MNet::Mpack r;
+    r.set_type(MNet::Mpack::INFO);
     r.set_session_id(m.session_id());
     NetworkManager::getNetMgr().deliver(std::move(r));
 }
