@@ -151,7 +151,7 @@ void MDBManager::do_mount_world(udp::endpoint ep)
     m.set_type(MNet::Mpack::CONTROL);
     m.set_control(MNet::Mpack::MOUNT_WORLD);
     auto conn = pool_.grab(0);
-    mysqlpp::Query query = conn->query("select * from world where ts=(select max(ts) from world");
+    mysqlpp::Query query = conn->query("select * from world where ts=(select max(ts) from world)");
     mysqlpp::StoreQueryResult res = query.store();
     if(res.empty()){
         m.mutable_world(); // set empty world;
@@ -162,7 +162,7 @@ void MDBManager::do_mount_world(udp::endpoint ep)
         INFO("Get world data at %s.", world_now.ts.str().c_str()); 
         MNet::World w;
         w.ParseFromArray(world_now.dat.c_str(), world_now.dat.length());
-        m.set_allocated_world(&w);
+       (*m.mutable_world()) = w;
     }
     server_ptr_->deliver(ep, m.SerializeAsString());
 }
@@ -175,7 +175,17 @@ void MDBManager::do_create_user(MNet::Mpack m, udp::endpoint ep)
     std::string salt = m.login().salt();
     {
         auto conn = pool_.grab(0);
-        mysqlpp::Query query = conn->query();
+        mysqlpp::Query query = conn->query("select uid from player where uid=%0:uid");
+        query.parse();
+        mysqlpp::StoreQueryResult res = query.store(uid);
+        if(!res.empty()){
+            ERROR("Player %u exists!", uid);
+            MNet::Mpack a;
+            a.set_type(MNet::Mpack::CONTROL);
+            a.set_control(MNet::Mpack::ACK_NO);
+            server_ptr_->deliver(ep, a.SerializeAsString());
+            return;
+        }
         mysqlpp::Transaction trans(*conn,
             mysqlpp::Transaction::serializable,
             mysqlpp::Transaction::session);

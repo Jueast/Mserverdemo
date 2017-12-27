@@ -46,7 +46,7 @@ void MDBUDPServer::do_receive(){
             [this](boost::system::error_code ec, std::size_t bytes_recvd){
                 if(!ec && bytes_recvd > 0)
                 {
-                    INFO("Receive message from %s", sender_endpoint_.address().to_string().c_str());
+                    TRACE("Receive message from %s", sender_endpoint_.address().to_string().c_str());
 					MNet::Mpack m;
                     m.ParsePartialFromArray(read_data_, bytes_recvd); 
                     MDBManager::getMDBMgr().processRequest(std::move(m), sender_endpoint_);
@@ -84,7 +84,7 @@ void MDBUDPServer::do_write()
             boost::asio::buffer(write_data_.front().second),
             write_data_.front().first,
             [this](boost::system::error_code, std::size_t){
-				INFO("Send a message to %s", write_data_.front().first.address().to_string().c_str());
+		TRACE("Send a message to %s", write_data_.front().first.address().to_string().c_str());
                 write_data_.pop_front();
                 if(!write_data_.empty()){
                     do_write();
