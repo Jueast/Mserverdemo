@@ -2,7 +2,7 @@ syntax = "proto3";
 package MNet;
 message Login
 {
-    int32 uid = 1;
+    uint32 uid = 1;
     string username = 2;
     string salt = 3;
 }
@@ -11,47 +11,69 @@ message Files
 {
     message File 
     {
-        int32 uid = 1;
+        uint32 uid = 1;
         string name = 2;
         bytes content = 3;
     }
     repeated File files = 1;
 }
-message States {
-    message Attribute{
-        string name = 1;
-        int32 quantity = 2;
-    } 
-    map<int32, Attribute> PlayerTransaction = 1;
-    map<int32, Attribute> WorldTransaction = 2;
-
+message Attribute {
+    string name = 1;
+    uint32 value = 2;
 }
+message World {
+    map<uint32, Attribute> attrs = 1;
+}
+
+message Player {
+    map<uint32, Attribute> attrs = 1;
+}
+    
+message Command {
+    string action = 1;
+    uint32 object = 2;
+    uint32 value = 3;
+}
+
 message Mpack 
 {
     enum MpackType 
     {
         HEARTBEAT = 0;
-        INFO = 1;
+        CONTROL = 1;
+        INFO = 2;
+        LOGIN = 3;
+        FILSE = 4;
 
-        LOGIN = 2;
-        FILSE = 3;
-
-        STATE_QUERY = 4;
-        STATE_MODIFY = 5;
-
+        STATE_QUERY = 5;
+        STATE_MODIFY = 6;
+	COMMAND = 7;
+    }
+    enum ControlType
+    {
+        ACK_YES = 0;
+        ACK_NO = 1;
+        MOUNT_USER = 2;
+        MOUNT_WORLD = 3;
+        CREATE_USER = 4;
+        SYNC = 5;
+        AUTH = 6;
     }
     // Client/Server versions which should match. 
-    int32 version = 1;
+    uint32 version = 1;
     MpackType type = 2;
     // True when the result is negative(Login error, Runtime error, ....) and details will be in content field.
     bool error = 3;
     // contain log information
     string content = 4;
-    int32 uid = 5;
-
-    Login login = 6; 
-    Files Files = 7;
-    States States = 8;
+    uint32 session_id = 5;
+    int64 time = 6;
+    Login login = 7; 
+    Files files = 8;
+    ControlType control = 9;
+    Command command = 10;
+    map<uint32, Player> players = 11;
+    World world = 12;
 }
 
 

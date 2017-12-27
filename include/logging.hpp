@@ -21,6 +21,7 @@
 #define WARN(...) hlog(Logging::level::level_enum::warn, __VA_ARGS__)
 #define ERROR(...) hlog(Logging::level::level_enum::error, __VA_ARGS__)
 #define FATAL(...) hlog(Logging::level::level_enum::fatal, __VA_ARGS__)
+#define DEBUGIF(b, ...) do { if((b)) { hlog(Logging::level::level_enum::debug, __VA_ARGS__); } } while (0)
 #define FATALIF(b, ...) do { if((b)) { hlog(Logging::level::level_enum::fatal, __VA_ARGS__); } } while (0)
 #define CHECK(b, ...) do { if((b)) { hlog(Logging::level::level_enum::fatal, __VA_ARGS__); } } while (0)
 #define EXITIF(b, ...) do { if ((b)) { hlog(Logging::level::level_enum::error, __VA_ARGS__); _exit(1); }} while(0)
