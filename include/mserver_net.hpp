@@ -79,6 +79,7 @@ public:
     void init(const char* filename);
     // blocking login.
     void login(MNet::Mpack m);
+    void mountWorld();
     void sync(MNet::Mpack m); 
     void deliver(MNet::Mpack m);
 private:

@@ -150,7 +150,7 @@ void TCPServer::close(uint32_t session_id)
 
 }
 
-
+const size_t udp_limit = 10240;
 NetworkManager& NetworkManager::getNetMgr()
 {
 	static NetworkManager mgr;
@@ -162,8 +162,8 @@ void NetworkManager::sync(MNet::Mpack m)
 	boost::asio::spawn(get_io_service(),
 		[this, m](boost::asio::yield_context yield)
 		{
-			char data[40960];
-			m.SerializeToArray(data, 40960);
+			char data[udp_limit];
+			m.SerializeToArray(data, udp_limit);
 			udp::socket sock(get_io_service());
 			sock.open(udp::v4());
 			sock.async_send_to(
@@ -179,6 +179,28 @@ void NetworkManager::sync(MNet::Mpack m)
 			StateManager::getStateMgr().addTask(std::move(r));	
 		});
 }
+
+void NetworkManager::mountWorld()
+{
+    INFO("Mount world from database...");
+    char data[udp_limit];
+    MNet::Mpack m;
+    m.set_type(MNet::Mpack::CONTROL);
+    m.set_control(MNet::Mpack::MOUNT_WORLD);
+    m.SerializeToArray(data, udp_limit);
+    udp::socket sock(get_io_service());
+    sock.open(udp::v4());
+    sock.send_to(
+        boost::asio::buffer(data),
+        udp_server_ptr_->get_dbgate_address());
+    udp::endpoint from;
+    std::size_t l = sock.receive_from(boost::asio::buffer(data), from);
+    DEBUG("Get udp control message from %s", from.address().to_string().c_str());
+    MNet::Mpack r;
+    r.ParseFromArray(data, l);
+    StateManager::getStateMgr().mountWorld(r.world());
+}
+
 void NetworkManager::login(MNet::Mpack m) 
 {
     INFO("Get login request from session %u", m.session_id());
@@ -219,7 +241,8 @@ void NetworkManager::login(MNet::Mpack m)
             l = sock.async_receive_from(boost::asio::buffer(data), from, yield);
             r.Clear();
             r.ParseFromArray(data, l);    
-            StateManager::getStateMgr().addTask(std::move(r)); 
+            uint32_t uid = m.login().uid();
+            StateManager::getStateMgr().mountPlayer(uid, std::move(r.players().at(uid))); 
         }); 
             
 }
@@ -252,6 +275,8 @@ void NetworkManager::init(const char* filename)
     udp::endpoint db_ep(boost::asio::ip::address_v4::from_string(db_ip.c_str()), atoi(db_port.c_str()));
 
     udp_server_ptr_ = std::make_shared<MNet::UDPServer>(get_io_service(), u_ep, db_ep);
+    mountWorld();
+
     tcp_server_ptr_ = std::make_shared<MNet::TCPServer>(get_io_service(), t_ep, max_num);
     INFO("NetworkManager was initialized now.");
 }

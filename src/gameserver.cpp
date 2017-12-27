@@ -1,9 +1,12 @@
 #include <boost/asio.hpp>
 #include "mserver_net.hpp"
+#include "mserver_state.hpp"
 #include "logging.hpp"
+#include "common.hpp"
 int main(int argc, char* argv[]){
     try{
-	NetworkManager& mgr = NetworkManager::getNetMgr();
+	NetworkManager& netMgr = NetworkManager::getNetMgr();
+    StateManager& stateMgr = StateManager::getStateMgr(); 
 	Logging::Logger& logger = Logging::Logger::getLogger();
 	logger.setFileName("log/gameserver.log");
 	logger.setLogLevel(Logging::level::fatal);
@@ -14,13 +17,13 @@ int main(int argc, char* argv[]){
 	}
 	if(argc == 2)
 	{
-	    mgr.init(argv[1]);
+	    netMgr.init(argv[1]);
 	}
 	else
 	{
-	    mgr.init("gameserver.conf");
+	    netMgr.init("gameserver.conf");
 	}
-	mgr.get_io_service().run();
+	get_io_service().run();
     }
     catch(std::exception& e)
     {

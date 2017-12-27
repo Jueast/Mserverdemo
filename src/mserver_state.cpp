@@ -1,6 +1,8 @@
 #include "common.hpp"
 #include "mserver_state.hpp"
 #include "mserver_net.hpp"
+#include "logging.hpp"
+
 
 StateManager& StateManager::getStateMgr() 
 {
@@ -23,12 +25,10 @@ void StateManager::do_sync()
     send_message_.set_type(MNet::Mpack::STATE_MODIFY);
     NetworkManager::getNetMgr().sync(send_message_);
 }
-void StateManager::do_sync_complete(MNet::Mpack m)
+void StateManager::do_sync_complete()
 {
-    if(!m.error()){
-        send_message_ = sync_message_;
-        sync_message_.Clear();
-    }
+    send_message_ = sync_message_;
+    sync_message_.Clear();
 }
 
 
@@ -41,6 +41,20 @@ void StateManager::addTask(MNet::Mpack m)
             if(!processing)
                 do_process();
         });
+}
+
+void StateManager::mountWorld(MNet::World w)
+{
+    world_state_ = std::move(w);
+}
+
+void StateManager::mountPlayer(uint32_t uid, MNet::Player p)
+{
+    if(player_state_.find(uid) == player_state_.end())
+        player_state_[uid] = std::move(p);
+    else{
+        ERROR("This user %u is mounted!", uid);
+    }
 }
 
 void StateManager::do_process() 
@@ -65,9 +79,19 @@ void StateManager::do_process()
                 }
                 case Mpack::CONTROL:
                 {
-                    strand_.post(
-                        [this, m](){do_sync_complete(m);});
-                    break;
+                    switch(m.control()){
+                        case Mpack::ACK_NO:
+                        {
+                        //    do_sync(); 
+                            break;
+                        }
+                        case Mpack::ACK_YES:
+                        {
+                            strand_.post(
+                                [this, m](){do_sync_complete();});
+                            break;
+                        };
+                        default:break;
                 }
                 default:
                     break;
@@ -75,7 +99,7 @@ void StateManager::do_process()
             queue_.pop_front();
             if(!queue_.empty())
                 do_process();   
-        });
+            }});
 
 }
 
