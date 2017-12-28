@@ -12,7 +12,14 @@ void NetworkSession::start()
     conn_.start();
 }
 
-
+inline Mpack NetworkSession::simple_response(std::string content, bool error)
+{
+    Mpack m;
+    m.set_type(Mpack::INFO);
+    m.set_error(error);
+    m.set_content(content);
+    return m;
+}
 void NetworkSession::dispatch(Mpack m)
 {
     if(m.type() == Mpack::HEARTBEAT)
@@ -28,6 +35,11 @@ void NetworkSession::dispatch(Mpack m)
             dispatch_unauthorized(std::move(m));
             break;
         }
+        case SESSION_AUTHORIZED:
+        {
+            dispatch_authorized(std::move(m));
+            break;
+        }
         default:
             break;
     }
@@ -41,8 +53,16 @@ void NetworkSession::deliver(Mpack r)
             deliver_unauthorized(std::move(r));
             break;
         }
-        default:
+        case SESSION_AUTHORIZED:
+        {
+            deliver_authorized(std::move(r));
             break;
+        }
+        default:
+        {
+            conn_.deliver(simple_response("Not valid mpack type now", true));
+            break;
+        }
     }
 }
 
@@ -51,21 +71,68 @@ void NetworkSession::dispatch_unauthorized(Mpack m)
     switch(m.type()){
         case Mpack::LOGIN:
         {
+            uid_ = m.login().uid();
             NetworkManager::getNetMgr().login(std::move(m));
             break;
         }
-        // TODO other type
-        default:
+        case Mpack::REGISTER:
+        {
+            uid_ = m.login().uid();
+            NetworkManager::getNetMgr().signup(std::move(m));
             break;
+        }
+        default:
+        {
+            conn_.deliver(simple_response("Not valid mpack type now", true));
+            break;
+        }
     }
     
 }
+
+void NetworkSession::dispatch_authorized(Mpack m)
+{
+    switch(m.type())
+    {
+        case Mpack::LOGIN:
+            break;
+        case Mpack::REGISTER:
+            break;
+        case Mpack::STATE_QUERY:
+        case Mpack::STATE_MODIFY:
+        {
+            StateManager::getStateMgr().addTask(std::move(m));
+            break;
+        }
+        default:
+            break;
+
+    }
+}
+
+void NetworkSession::deliver_authorized(Mpack m)
+{
+    switch(m.type())
+    {
+        case Mpack::INFO:
+        case Mpack::STATE_QUERY:
+        case Mpack::STATE_MODIFY:
+        {
+            conn_.deliver(std::move(m));
+            break;
+        }
+        default:
+            break;
+    }
+
+}
+
 
 void NetworkSession::deliver_unauthorized(Mpack r)
 {
     switch(r.type())
     {
-        case Mpack::CONTROL:
+        case Mpack::INFO:
         {
             if(!r.error())
             {
@@ -82,6 +149,8 @@ void NetworkSession::deliver_unauthorized(Mpack r)
 }
 void NetworkSession::close() 
 {
+    if(state_ == SESSION_AUTHORIZED)
+        StateManager::getStateMgr().unmountPlayer(uid_);
     server_.close(session_id_);
 }
 
@@ -176,7 +245,7 @@ void NetworkManager::sync(MNet::Mpack m)
             MNet::Mpack r;
             r.ParseFromArray(data, l);
             r.set_session_id(m.session_id());
-			StateManager::getStateMgr().addTask(std::move(r));	
+	    StateManager::getStateMgr().addTask(std::move(r));	
 		});
 }
 
@@ -195,12 +264,46 @@ void NetworkManager::mountWorld()
         udp_server_ptr_->get_dbgate_address());
     udp::endpoint from;
     std::size_t l = sock.receive_from(boost::asio::buffer(data), from);
-    DEBUG("Get udp control message from %s", from.address().to_string().c_str());
+    DEBUG("Get udp MOUNT_WORLD message from %s", from.address().to_string().c_str());
     MNet::Mpack r;
     r.ParseFromArray(data, l);
     StateManager::getStateMgr().mountWorld(r.world());
 }
 
+void NetworkManager::mountUser(uint32_t uid, uint32_t session_id)
+{
+
+    INFO("Mount user %u from database...", uid);
+    MNet::Mpack m;
+    m.set_type(MNet::Mpack::CONTROL);
+    m.set_control(MNet::Mpack::MOUNT_USER);
+    m.set_session_id(session_id);
+    m.mutable_login()->set_uid(uid);
+    boost::asio::spawn(get_io_service(),
+        [this, m](boost::asio::yield_context yield)
+        {
+            char data[udp_limit];
+            m.SerializeToArray(data, udp_limit);
+            udp::socket sock(get_io_service());
+            sock.open(udp::v4());
+            sock.async_send_to(
+                boost::asio::buffer(data),
+                udp_server_ptr_->get_dbgate_address(), yield);
+            udp::endpoint from;
+            std::size_t l = sock.async_receive_from(boost::asio::buffer(data), from, yield);
+            DEBUG("Get udp MOUNT_USER message from %s", from.address().to_string().c_str());
+            MNet::Mpack r;
+            r.ParseFromArray(data, l);
+            uint32_t uid = m.login().uid();
+            StateManager::getStateMgr().mountPlayer(uid, std::move(r.players().at(uid))); 
+            r.Clear();
+            r.set_session_id(m.session_id());
+	    r.set_type(MNet::Mpack::INFO);
+            r.set_content("Authorized.");
+            r.set_error(false);
+            tcp_server_ptr_->deliver(std::move(r)); 
+        }); 
+}
 void NetworkManager::login(MNet::Mpack m) 
 {
     INFO("Get login request from session %u", m.session_id());
@@ -208,8 +311,8 @@ void NetworkManager::login(MNet::Mpack m)
     m.set_control(MNet::Mpack::AUTH);
     boost::asio::spawn(get_io_service(),
         [this, m](boost::asio::yield_context yield){
-            char data[40960];
-            m.SerializeToArray(data, 40960);
+            char data[udp_limit];
+            m.SerializeToArray(data, udp_limit);
             udp::socket sock(get_io_service());
             sock.open(udp::v4());
             sock.async_send_to(
@@ -222,29 +325,59 @@ void NetworkManager::login(MNet::Mpack m)
             MNet::Mpack r;
             r.ParseFromArray(data, l);
             bool ack = r.control() == MNet::Mpack::ACK_YES;
-            r.set_session_id(m.session_id());
-	    r.set_type(MNet::Mpack::INFO);
-            r.set_error(!ack);
-            r.clear_control();
-            tcp_server_ptr_->deliver(std::move(r)); 
             if(!ack)
+            {
+                r.set_session_id(m.session_id());
+	        r.set_type(MNet::Mpack::INFO);
+                r.set_error(!ack);
+                r.clear_control();
+                tcp_server_ptr_->deliver(std::move(r));
                 return;
-            MNet::Mpack mount_request;
-            mount_request.set_type(MNet::Mpack::CONTROL);
-            mount_request.set_control(MNet::Mpack::MOUNT_USER);
-            mount_request.mutable_login()->set_uid(m.login().uid());
-            mount_request.SerializeToArray(data, 40960);
-            sock.async_send_to(
-                boost::asio::buffer(data),
-                udp_server_ptr_->get_dbgate_address(),
-                yield);
-            l = sock.async_receive_from(boost::asio::buffer(data), from, yield);
-            r.Clear();
-            r.ParseFromArray(data, l);    
-            uint32_t uid = m.login().uid();
-            StateManager::getStateMgr().mountPlayer(uid, std::move(r.players().at(uid))); 
+            }
+            else
+            {
+                mountUser(m.login().uid(), m.session_id());
+            }
         }); 
             
+}
+
+void NetworkManager::signup(MNet::Mpack m)
+{
+    INFO("Get sign up request from session %u", m.session_id());
+    m.set_type(MNet::Mpack::CONTROL);
+    m.set_control(MNet::Mpack::CREATE_USER);
+    boost::asio::spawn(get_io_service(),
+        [this, m](boost::asio::yield_context yield){
+            char data[udp_limit];
+            m.SerializeToArray(data, udp_limit);
+            udp::socket sock(get_io_service());
+            sock.open(udp::v4());
+            sock.async_send_to(
+                    boost::asio::buffer(data),
+                    udp_server_ptr_->get_dbgate_address(),
+                    yield);
+            udp::endpoint from;
+            std::size_t l = sock.async_receive_from(boost::asio::buffer(data), from, yield);
+            DEBUG("Get udp control message from %s", from.address().to_string().c_str());
+            MNet::Mpack r;
+            r.ParseFromArray(data, l);
+            bool ack = r.control() == MNet::Mpack::ACK_YES;
+            if(!ack)
+            {
+                r.set_session_id(m.session_id());
+	        r.set_type(MNet::Mpack::INFO);
+                r.set_error(!ack);
+                r.clear_control();
+                tcp_server_ptr_->deliver(std::move(r));
+                return;
+            }
+            else
+            {
+                mountUser(m.login().uid(), m.session_id());
+            }
+        }); 
+    
 }
 void NetworkManager::deliver(MNet::Mpack m)
 {

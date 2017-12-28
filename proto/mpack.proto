@@ -43,11 +43,13 @@ message Mpack
         CONTROL = 1;
         INFO = 2;
         LOGIN = 3;
-        FILSE = 4;
+        REGISTER = 4;
+        FILES = 5;
+    
 
-        STATE_QUERY = 5;
-        STATE_MODIFY = 6;
-	COMMAND = 7;
+        STATE_QUERY = 6;
+        STATE_MODIFY = 7;
+	COMMAND = 8;
     }
     enum ControlType
     {

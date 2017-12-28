@@ -21,6 +21,8 @@ public:
     void addTask(MNet::Mpack m);
     void mountWorld(MNet::World w);
     void mountPlayer(uint32_t uid, MNet::Player p);
+    void unmountPlayer(uint32_t uid);
+    void sync();
 private:
     StateManager();
     ~StateManager() = default; 

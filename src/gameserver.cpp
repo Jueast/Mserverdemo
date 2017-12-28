@@ -18,10 +18,12 @@ int main(int argc, char* argv[]){
 	if(argc == 2)
 	{
 	    netMgr.init(argv[1]);
+            stateMgr.init(argv[1]);
 	}
 	else
 	{
 	    netMgr.init("gameserver.conf");
+            stateMgr.init("gameserver.conf");
 	}
 	get_io_service().run();
     }

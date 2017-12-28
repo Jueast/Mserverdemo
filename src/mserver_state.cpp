@@ -19,14 +19,30 @@ StateManager::StateManager()
  sync_message_()
 {
 }
-
+// TODO: Complete the init
+void StateManager::init(const char* filename)
+{
+    
+    timer_.expires_from_now(boost::posix_time::seconds(30));
+    timer_.async_wait(strand_.wrap(std::bind(&StateManager::sync, this)));
+    INFO("StateManager was initialized now.");
+}
+void StateManager::sync()
+{
+    do_sync();
+    timer_.expires_at(timer_.expires_at() + boost::posix_time::seconds(30));
+    timer_.async_wait(strand_.wrap(std::bind(&StateManager::sync, this)));
+}
 void StateManager::do_sync() 
 {
-    send_message_.set_type(MNet::Mpack::STATE_MODIFY);
+    INFO("SYNC states now..");
+    send_message_.set_type(MNet::Mpack::CONTROL);
+    send_message_.set_control(MNet::Mpack::SYNC);
     NetworkManager::getNetMgr().sync(send_message_);
 }
 void StateManager::do_sync_complete()
 {
+    INFO("SYNC complete. flip.");
     send_message_ = sync_message_;
     sync_message_.Clear();
 }
@@ -36,6 +52,7 @@ void StateManager::addTask(MNet::Mpack m)
 {
     strand_.post(
         [this, m](){
+            TRACE("Get task from session %u, waitting list size: %d", m.session_id(), queue_.size()); 
             bool processing = !queue_.empty();
             queue_.push_back(std::move(m));
             if(!processing)
@@ -50,11 +67,26 @@ void StateManager::mountWorld(MNet::World w)
 
 void StateManager::mountPlayer(uint32_t uid, MNet::Player p)
 {
+    INFO("Mount user %u now...", uid);
     if(player_state_.find(uid) == player_state_.end())
         player_state_[uid] = std::move(p);
     else{
-        ERROR("This user %u is mounted!", uid);
+        ERROR("This player %u is mounted!", uid);
     }
+}
+
+void StateManager::unmountPlayer(uint32_t uid)
+{
+    strand_.post(
+        [this, uid](){
+            INFO("Unmount player %u now.."); 
+            if(player_state_.find(uid) == player_state_.end())
+            {
+                ERROR("This user %u is not mounted", uid);
+            }
+            else
+                player_state_.erase(uid);
+        });
 }
 
 void StateManager::do_process() 
@@ -79,7 +111,8 @@ void StateManager::do_process()
                 }
                 case Mpack::CONTROL:
                 {
-                    switch(m.control()){
+                    switch(m.control())
+                    {
                         case Mpack::ACK_NO:
                         {
                         //    do_sync(); 
@@ -92,6 +125,7 @@ void StateManager::do_process()
                             break;
                         };
                         default:break;
+                    }
                 }
                 default:
                     break;
@@ -99,14 +133,19 @@ void StateManager::do_process()
             queue_.pop_front();
             if(!queue_.empty())
                 do_process();   
-            }});
+            });
 
 }
 
 void StateManager::do_load(MNet::Mpack m)
 {
+    INFO("Process query request from session %u...", m.session_id());
     for(auto it = m.mutable_players()->begin(); it != m.mutable_players()->end(); it++)
     {
+        if(player_state_.find(it->first) == player_state_.end()){
+            ERROR("Player %u is not mounted", it->first);
+            continue;
+        }
         loadPlayer(it->second, player_state_[it->first]);
     }
     if(m.has_world()){
@@ -117,8 +156,13 @@ void StateManager::do_load(MNet::Mpack m)
 
 void StateManager::do_modify(MNet::Mpack m)
 {
+    INFO("Process modify request from session %u...", m.session_id());
     for(auto it = m.players().begin(); it != m.players().end(); it++)
     {
+        if(player_state_.find(it->first) == player_state_.end()){
+            ERROR("Player %u is not mounted", it->first);
+            continue;
+        }
         updatePlayer(player_state_[it->first], it->second);
         if(sync_message_.players().find(it->first) == sync_message_.players().end())
         {
