@@ -146,10 +146,10 @@ void StateManager::do_load(MNet::Mpack m)
             ERROR("Player %u is not mounted", it->first);
             continue;
         }
-        loadPlayer(it->second, player_state_[it->first]);
+        load_player(it->second, player_state_[it->first]);
     }
     if(m.has_world()){
-        loadWorld(*m.mutable_world(), world_state_);
+        load_world(*m.mutable_world(), world_state_);
     }
     NetworkManager::getNetMgr().deliver(std::move(m));
 }
@@ -163,21 +163,21 @@ void StateManager::do_modify(MNet::Mpack m)
             ERROR("Player %u is not mounted", it->first);
             continue;
         }
-        updatePlayer(player_state_[it->first], it->second);
+        update_player(player_state_[it->first], it->second);
         if(sync_message_.players().find(it->first) == sync_message_.players().end())
         {
             (*sync_message_.mutable_players())[it->first] = it->second;
         }
         else
         {
-            updatePlayer((*sync_message_.mutable_players())[it->first], it->second);
+            update_player((*sync_message_.mutable_players())[it->first], it->second);
         }
     }
     if(m.has_world()){
-        updateWorld(world_state_, m.world());
+        update_world(world_state_, m.world());
         if(sync_message_.has_world())
         {
-            updateWorld(*sync_message_.mutable_world(), m.world());
+            update_world(*sync_message_.mutable_world(), m.world());
         }
         else
         {
