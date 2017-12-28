@@ -17,6 +17,7 @@ DEPS=${INC_DIR}/mpack_message.hpp
 all: ${BIN_DIR} protobuf gameserver dbgate 
 	rm *.o
 	mkdir -p ${BIN_DIR}/log
+	cp config_examples/* bin/
 
 ${BIN_DIR}:
 	mkdir -p ${BIN_DIR}

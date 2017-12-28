@@ -27,11 +27,15 @@ public:
     void close();
 private:
     void dispatch_unauthorized(Mpack m);
+    void dispatch_authorized(Mpack m);
     void deliver_unauthorized(Mpack r);
+    void deliver_authorized(Mpack r);
+    Mpack simple_response(std::string content, bool error);
     NetworkConnection conn_;
     SessionState state_;
     TCPServer& server_;
     uint32_t session_id_;
+    uint32_t uid_;
 };
 
 class TCPServer {
@@ -70,8 +74,9 @@ private:
     udp::endpoint dbgate_address_;
 };
 
-
 }
+
+
 using boost::asio::ip::udp;
 class NetworkManager{
 public:
@@ -79,6 +84,9 @@ public:
     void init(const char* filename);
     // blocking login.
     void login(MNet::Mpack m);
+    void signup(MNet::Mpack m);
+    void mountWorld();
+    void mountUser(uint32_t uid, uint32_t session_id);
     void sync(MNet::Mpack m); 
     void deliver(MNet::Mpack m);
 private:

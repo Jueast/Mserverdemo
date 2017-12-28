@@ -253,7 +253,7 @@ void MDBManager::do_modify(MNet::Mpack m, udp::endpoint ep)
             world world_now = res[0];
             MNet::World w;
             w.ParseFromArray(world_now.dat.c_str(), world_now.dat.length());
-            updateWorld(w, m.world());       
+            update_world(w, m.world());       
             world_now.dat = mysqlpp::String(w.SerializeAsString());
             world_now.ts = mysqlpp::DateTime::now();
             query = conn->query();
@@ -279,7 +279,7 @@ void MDBManager::do_modify(MNet::Mpack m, udp::endpoint ep)
                 auto p_old = p;
                 MNet::Player mp;
                 mp.ParseFromArray(p_old.dat.c_str(), p_old.dat.length());
-                updatePlayer(mp, it->second);
+                update_player(mp, it->second);
                 p.dat = mysqlpp::String(mp.SerializeAsString());
                 p.ts = mysqlpp::DateTime::now();
                 query.update(p_old, p);

@@ -19,11 +19,15 @@ public:
     static StateManager& getStateMgr();
     void init(const char* filename);   
     void addTask(MNet::Mpack m);
+    void mountWorld(MNet::World w);
+    void mountPlayer(uint32_t uid, MNet::Player p);
+    void unmountPlayer(uint32_t uid);
+    void sync();
 private:
     StateManager();
-    ~StateManager() = default;
+    ~StateManager() = default; 
     void do_sync();
-    void do_sync_complete(MNet::Mpack m);
+    void do_sync_complete();
     void do_load(MNet::Mpack m);
     void do_modify(MNet::Mpack m);
     void do_process();

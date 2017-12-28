@@ -9,11 +9,11 @@ inline boost::asio::io_service& get_io_service()
 }
 // update means the data in left will be changed according to right;
 // CONTENTS determined by right;
-void updatePlayer(MNet::Player& pl, const MNet::Player& pr);
-void updateWorld(MNet::World& wl, const MNet::World& wr);
+void update_player(MNet::Player& pl, const MNet::Player& pr);
+void update_world(MNet::World& wl, const MNet::World& wr);
 
 // load means thed blank in left will be filled according to right;
 // CONTENTS determined by left;
-void loadPlayer(MNet::Player& pl, const MNet::Player& pr);
-void loadWorld(MNet::World& wl, const MNet::World& wr);
+void load_player(MNet::Player& pl, const MNet::Player& pr);
+void load_world(MNet::World& wl, const MNet::World& wr);
 #endif
