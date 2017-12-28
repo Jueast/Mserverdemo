@@ -79,7 +79,7 @@ void StateManager::unmountPlayer(uint32_t uid)
 {
     strand_.post(
         [this, uid](){
-            INFO("Unmount player %u now.."); 
+            INFO("Unmount player %u now..", uid); 
             if(player_state_.find(uid) == player_state_.end())
             {
                 ERROR("This user %u is not mounted", uid);
